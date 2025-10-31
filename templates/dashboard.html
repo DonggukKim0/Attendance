@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>대시보드</title>
+</head>
+<body>
+  <h2>{{ username }}님</h2>
+
+  {% if open_rec %}
+    <p>오늘 출근: {{ open_rec.time_in }}</p>
+    <form method="post" action="{{ url_for('punch_out') }}">
+      <button type="submit">퇴근하기</button>
+    </form>
+  {% else %}
+    <form method="post" action="{{ url_for('punch_in') }}">
+      <button type="submit">출근하기</button>
+    </form>
+  {% endif %}
+
+  <p>이번달 누적: {{ month_hours }}시간 {{ month_mins }}분</p>
+
+  {% if is_admin %}
+    <p><a href="{{ url_for('admin') }}">관리자 페이지</a></p>
+  {% endif %}
+
+  <p><a href="{{ url_for('logout') }}">로그아웃</a></p>
+  <p><a href="{{ url_for('change_password') }}">비밀번호 변경</a></p>
+  <p><a href="{{ url_for('profiles') }}">팀 상태판 보기 👀</a></p>
+  {% if is_admin %}
+  <p><a href="{{ url_for('admin') }}">관리자 페이지</a></p>
+  {% endif %}
+</body>
+</html>

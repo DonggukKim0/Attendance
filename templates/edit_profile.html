@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>내 프로필 수정</title>
+</head>
+<body>
+  <h2>내 프로필 수정</h2>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul>
+      {% for m in messages %}
+        <li>{{ m }}</li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post" enctype="multipart/form-data">
+    <p>
+      <label>상태 메시지</label><br>
+      <textarea name="status_msg" rows="3" cols="30">{{ me["status_msg"] if me["status_msg"] else "" }}</textarea>
+    </p>
+
+    <p>
+      <label>프로필 이미지 (선택)</label><br>
+      <input type="file" name="avatar"><br>
+      {% if me["avatar_path"] %}
+        <img src="{{ url_for('static', filename=me['avatar_path'].split('static/')[1]) }}"
+             style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-top:8px; border:1px solid #aaa;">
+      {% endif %}
+    </p>
+
+    <button type="submit">저장</button>
+  </form>
+
+  <p><a href="{{ url_for('profiles') }}">팀 상태판으로</a></p>
+  <p><a href="{{ url_for('dashboard') }}">대시보드로 돌아가기</a></p>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>관리자 페이지</title>
+</head>
+<body>
+  <h2>{{ month }} 월 근무 현황</h2>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul>
+      {% for m in messages %}
+        <li>{{ m }}</li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <h3>사람별 합계</h3>
+  <table border="1" cellpadding="5">
+    <tr>
+      <th>이름</th>
+      <th>합계(분)</th>
+      <th>합계(시:분)</th>
+      <th>관리</th>
+    </tr>
+    {% for row in per_user %}
+      {% set h = (row.total_min // 60) %}
+      {% set m = (row.total_min % 60) %}
+      <tr>
+        <td>{{ row.username }}</td>
+        <td>{{ row.total_min }}</td>
+        <td>{{ "%d:%02d" % (h, m) }}</td>
+        <td>
+          {# 관리자 전용 액션 버튼들 #}
+          {% if session.get('is_admin') %}
+
+            {# 비밀번호 초기화 버튼: /admin_reset/<username> 에 POST #}
+            <form method="post" action="{{ url_for('admin_reset', username=row.username) }}" style="display:inline;">
+              <button type="submit" onclick="return confirm('{{ row.username }} 비밀번호를 기본값으로 초기화할까요?')">
+                비번초기화
+              </button>
+            </form>
+
+            {# 유저 삭제 버튼: /admin_delete_user/<username> 에 POST #}
+            {% if row.username != 'dongguk' %}
+            <form method="post" action="{{ url_for('admin_delete_user', username=row.username) }}" style="display:inline; margin-left:4px;">
+              <button type="submit" onclick="return confirm('{{ row.username }} 계정을 완전히 삭제할까요? 이 작업은 복구되지 않습니다.')">
+                삭제
+              </button>
+            </form>
+            {% endif %}
+
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+
+  <h3>최근 기록</h3>
+  <table border="1" cellpadding="5">
+    <tr>
+      <th>날짜</th>
+      <th>이름</th>
+      <th>출근</th>
+      <th>퇴근</th>
+      <th>근무(분)</th>
+    </tr>
+    {% for rec in recent %}
+    <tr>
+      <td>{{ rec.date }}</td>
+      <td>{{ rec.username }}</td>
+      <td>{{ rec.time_in }}</td>
+      <td>{{ rec.time_out if rec.time_out else "-" }}</td>
+      <td>{{ rec.work_minutes if rec.work_minutes else "-" }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <p><a href="{{ url_for('dashboard') }}">내 화면으로</a></p>
+  <p><a href="{{ url_for('admin_add_user') }}">➕ 새 유저 추가</a></p>
+</body>
+</html>

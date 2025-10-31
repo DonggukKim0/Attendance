@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>유저 추가</title>
+</head>
+<body>
+  <h2>새 유저 추가</h2>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <ul>
+      {% for m in messages %}
+        <li>{{ m }}</li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="post">
+    <label>아이디<br><input type="text" name="username"></label><br><br>
+    <label>비밀번호<br><input type="password" name="password"></label><br><br>
+    <button type="submit">추가</button>
+  </form>
+
+  <p><a href="{{ url_for('admin') }}">관리자 페이지로 돌아가기</a></p>
+</body>
+</html>

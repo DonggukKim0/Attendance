@@ -46,6 +46,9 @@
       </div>
       <div class="progress-label">
         {{ p['today_hours'] }}시간 {{ p['today_mins'] }}분 / 8시간
+        {% if p['today_minutes'] > 480 %}
+          (야근🔥)
+        {% endif %}
       </div>
     </div>
   {% endfor %}

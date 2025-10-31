@@ -71,3 +71,88 @@
   color: #444;
   margin-top: 4px;
 }
+
+/* ----------------------------
+   Weekly dashboard (race track)
+   ---------------------------- */
+.week-header {
+  font-family: sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 16px;
+}
+
+.weekly-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  font-family: sans-serif;
+  background: #fafafa;
+}
+
+.runner-info {
+  width: 140px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+/* smaller avatar for weekly view */
+.avatar-small {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #eee;
+  border: 1px solid #aaa;
+  display: block;
+  margin: 0 auto 6px;
+  font-size: 11px;
+  line-height: 48px;
+  color: #666;
+  text-align: center;
+}
+
+.track {
+  flex: 1;
+  position: relative;
+}
+
+.track-line {
+  position: relative;
+  height: 6px;
+  background: #ddd;
+  border-radius: 3px;
+}
+
+.runner-icon {
+  position: absolute;
+  top: -16px;
+  transform: translateX(-50%);
+  font-size: 18px;
+}
+
+.finish-flag {
+  position: absolute;
+  right: 0;
+  top: -20px;
+  font-size: 16px;
+}
+
+.runner-stats {
+  width: 180px;
+  font-size: 13px;
+  text-align: right;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.overwork-flag {
+  color: #cc0000;
+  font-weight: bold;
+  margin-left: 4px;
+}

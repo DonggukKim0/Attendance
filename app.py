@@ -118,6 +118,7 @@ def get_db():
 # 오늘 날짜 기준으로 time_out 이 아직 NULL 인 출근 레코드가 있는 user_id 들을 set 으로 반환한다.
 # 즉, '출근 찍고 아직 퇴근 안 한 사람들' = 현재 근무 중 (초록불)
 # 퇴근까지 끝난 사람은 이 set 에 안 들어감 (빨간불)
+
 def get_active_user_ids_for_today(conn):
     """
     오늘 날짜 기준으로 time_out 이 아직 NULL 인 출근 레코드가 있는 user_id 들을 set 으로 반환한다.
@@ -137,6 +138,61 @@ def get_active_user_ids_for_today(conn):
     rows = c.fetchall()
     active_ids = {r[0] for r in rows}
     return active_ids
+
+# -------------------------------------------------------------------------
+# 자동 퇴근 처리: 어제(또는 그 이전) 출근만 찍고 퇴근(time_out)이 비어 있는 레코드를 자동으로 마감
+def auto_close_old_open_shifts(conn):
+    """
+    어제(또는 그 이전 날) 출근만 찍고 퇴근(time_out)이 비어 있는 레코드를 자동으로 마감한다.
+    마감 규칙:
+      - time_out 을 '23:59:59' 로 넣는다.
+      - work_minutes 는 time_in 부터 23:59:59 까지의 분으로 계산한다.
+    오늘 날짜의 열린 레코드는 건드리지 않는다 (아직 근무중일 수 있으니까).
+    이 함수는 각 페이지 진입 시 한 번씩 호출해도 큰 부담이 없다.
+    """
+    cur_date = date.today().isoformat()
+    c = conn.cursor()
+
+    # 어제 이전의 열린 근무(퇴근 안 찍은) 기록을 전부 가져온다
+    c.execute(
+        """
+        SELECT id, date, time_in
+        FROM attendance
+        WHERE time_out IS NULL
+        AND date < ?
+        """,
+        (cur_date,)
+    )
+    rows = c.fetchall()
+
+    for r in rows:
+        rec_id = r["id"]
+        work_date = r["date"]           # 'YYYY-MM-DD'
+        t_in_str = r["time_in"]          # 'HH:MM:SS'
+        # 강제로 마감 시간을 23:59:59 로 고정
+        forced_out_str = "23:59:59"
+
+        # work_minutes 계산
+        try:
+            t_in_dt = datetime.strptime(t_in_str, "%H:%M:%S")
+            t_out_dt = datetime.strptime(forced_out_str, "%H:%M:%S")
+            delta_min = int((t_out_dt - t_in_dt).total_seconds() // 60)
+            if delta_min < 0:
+                delta_min = 0
+        except Exception:
+            delta_min = 0
+
+        c.execute(
+            """
+            UPDATE attendance
+            SET time_out=?, work_minutes=?
+            WHERE id=?
+            """,
+            (forced_out_str, delta_min, rec_id)
+        )
+
+    if rows:
+        conn.commit()
 
 
 def hash_password(plain_password: str) -> str:
@@ -198,6 +254,9 @@ def dashboard():
 
     conn = get_db()
     c = conn.cursor()
+
+    # 전날(또는 그 이전) 퇴근 안 찍은 기록 자동 마감
+    auto_close_old_open_shifts(conn)
 
     # 오늘 출근했는데 퇴근 안 찍은거
     c.execute("""
@@ -301,6 +360,9 @@ def admin():
 
     conn = get_db()
     c = conn.cursor()
+
+    # 전날(또는 그 이전) 퇴근 안 찍은 기록 자동 마감
+    auto_close_old_open_shifts(conn)
 
     # 현재 근무중(출근 찍고 아직 퇴근 안 한) 사용자 ID set
     active_user_ids = get_active_user_ids_for_today(conn)
@@ -535,6 +597,9 @@ def profiles():
     conn = get_db()
     c = conn.cursor()
 
+    # 전날(또는 그 이전) 퇴근 안 찍은 기록 자동 마감
+    auto_close_old_open_shifts(conn)
+
     # 전체 유저 정보 불러오기
     c.execute(
         """
@@ -688,6 +753,152 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
+
+# ---------------------------------------------------------
+# 주간 현황: 이번 주 (월~일) 동안 각 유저가 얼마나 일했는지 합산해서 보여준다.
+# 레이스 트랙 스타일을 위해 각 유저별로 week_minutes / 2400 비율을 퍼센트로 계산하여
+# 캐릭터 위치로 쓸 수 있도록 넘겨준다.
+
+def get_week_range(today=None):
+    """
+    today 기준으로 이번 주의 월요일(monday)과 일요일(sunday) 날짜 객체를 반환한다.
+    주간 기준: 월요일 시작 ~ 일요일 끝.
+    """
+    if today is None:
+        today = date.today()
+    monday = today - timedelta(days=today.weekday())  # weekday(): Mon=0 ... Sun=6
+    sunday = monday + timedelta(days=6)
+    return monday, sunday
+
+
+def collect_week_minutes_per_user(monday: date, sunday: date):
+    """
+    월별 DB 구조를 유지하면서, 월을 걸쳐 있는 주간(예: 10월 말~11월 초)도 합산 가능하게 한다.
+
+    1) 이번 주 날짜 범위 [monday, sunday]를 문자열(YYYY-MM-DD)로 만든다.
+    2) 이 범위에 걸쳐있는 year-month 들을 뽑는다. 예: {"2025_10", "2025_11"}.
+    3) 각각의 attendance_YYYY_MM.db 를 열어서
+       해당 범위(date BETWEEN monday_str AND sunday_str)의 work_minutes 합을 user_id별로 모은다.
+    4) users 테이블에서 username/status_msg/avatar_path도 한 번에 묶어서 반환하기 쉽게 dict로 구성한다.
+    """
+    monday_str = monday.isoformat()
+    sunday_str = sunday.isoformat()
+
+    # 이번 주에 필요한 year_month 키들 수집
+    ym_keys = set()
+    cur_day = monday
+    while cur_day <= sunday:
+        ym_keys.add(cur_day.strftime("%Y_%m"))
+        cur_day += timedelta(days=1)
+
+    # 유저별 누적 분(dictionary)
+    per_user_minutes = {}  # { user_id: total_week_minutes }
+
+    # 유저 메타정보 (username, avatar 등)도 모을 dict
+    user_meta = {}  # { user_id: {"username":..., "avatar_path":..., "status_msg":...} }
+
+    for ym in ym_keys:
+        db_path = BASE_DIR / f"attendance_{ym}.db"
+        if not db_path.exists():
+            continue
+
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+
+        # 1) 이번 주 범위 내 근무 기록 합계 (user_id별)
+        c.execute(
+            """
+            SELECT user_id, COALESCE(SUM(work_minutes),0) AS total_min
+            FROM attendance
+            WHERE date >= ? AND date <= ?
+            GROUP BY user_id
+            """,
+            (monday_str, sunday_str)
+        )
+        rows = c.fetchall()
+        for r in rows:
+            uid = r["user_id"]
+            tmin = r["total_min"] if r["total_min"] else 0
+            per_user_minutes[uid] = per_user_minutes.get(uid, 0) + tmin
+
+        # 2) 해당 DB의 users 테이블에서 메타정보 확보 (없으면 채운다)
+        c.execute(
+            """
+            SELECT id, username, status_msg, avatar_path
+            FROM users
+            """
+        )
+        urows = c.fetchall()
+        for ur in urows:
+            uid = ur["id"]
+            if uid not in user_meta:
+                user_meta[uid] = {
+                    "username": ur["username"],
+                    "status_msg": ur["status_msg"],
+                    "avatar_path": ur["avatar_path"],
+                }
+
+        conn.close()
+
+    # 이제 per_user_minutes 와 user_meta 를 합쳐서 리스트로 변환
+    week_data = []
+    FULL_WEEK_MIN = 40 * 60  # 40시간 = 2400분
+    for uid, total_min in per_user_minutes.items():
+        hours = total_min // 60
+        mins = total_min % 60
+        ratio = total_min / FULL_WEEK_MIN if FULL_WEEK_MIN > 0 else 0
+        if ratio > 1:
+            ratio = 1
+        percent = int(ratio * 100)
+
+        meta = user_meta.get(uid, {
+            "username": f"user{uid}",
+            "status_msg": None,
+            "avatar_path": None,
+        })
+
+        week_data.append({
+            "id": uid,
+            "username": meta["username"],
+            "status_msg": meta["status_msg"],
+            "avatar_path": meta["avatar_path"],
+            "week_minutes": total_min,
+            "week_hours": hours,
+            "week_mins": mins,
+            "track_percent": percent,  # 캐릭터 위치 (0~100)
+            "overwork": (total_min > FULL_WEEK_MIN),  # 40시간 초과 여부
+        })
+
+    # username 기준으로 정렬해서 보기 예쁘게
+    week_data.sort(key=lambda x: x["username"].lower())
+    return week_data
+
+
+@app.route("/weekly")
+def weekly():
+    # 로그인 안 되어 있으면 로그인 페이지로 넘긴다
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    # 관리자만 제한하고 싶으면 아래 주석 해제해서 if-block 살리면 됨.
+    # if not session.get("is_admin", False):
+    #     return redirect(url_for("dashboard"))
+
+    # 이번 주(월~일) 범위 계산
+    monday, sunday = get_week_range()
+
+    # 주간 데이터 모으기 (월跨월 자동 처리)
+    week_data = collect_week_minutes_per_user(monday, sunday)
+
+    # 템플릿에 넘길 부가 정보
+    week_range_label = f"{monday.isoformat()} ~ {sunday.isoformat()}"
+
+    return render_template(
+        "weekly.html",
+        week_data=week_data,
+        week_range_label=week_range_label,
+    )
 
 if __name__ == "__main__":
     # 0.0.0.0 으로 열어야 다른 PC에서 접속 가능

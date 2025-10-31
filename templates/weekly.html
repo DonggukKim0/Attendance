@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>주간 현황판</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    body {
+      font-family: 'Apple SD Gothic Neo', sans-serif;
+      background: linear-gradient(to bottom right, #f0f3f7, #ffffff);
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+      font-size: 24px;
+    }
+    .weekly-container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      padding: 24px;
+    }
+    .runner-row {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 14px 0;
+    }
+    .runner-info {
+      width: 140px;
+      text-align: center;
+    }
+    .avatar-small {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #ccc;
+      margin-bottom: 8px;
+    }
+    .track {
+      flex: 1;
+      position: relative;
+    }
+    .track-line {
+      position: relative;
+      height: 8px;
+      background: #ddd;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .runner-icon {
+      position: absolute;
+      top: -18px;
+      transform: translateX(-50%);
+      font-size: 20px;
+      transition: left 0.8s ease;
+    }
+    .finish-flag {
+      position: absolute;
+      right: 0;
+      top: -22px;
+      font-size: 18px;
+    }
+    .runner-stats {
+      width: 180px;
+      text-align: right;
+      font-size: 14px;
+      color: #444;
+    }
+    .overwork-flag {
+      color: #d93025;
+      font-weight: bold;
+      margin-left: 6px;
+    }
+    .footer-nav {
+      text-align: center;
+      margin-top: 28px;
+    }
+    .footer-nav a {
+      color: #3366cc;
+      text-decoration: none;
+      margin: 0 10px;
+      font-size: 14px;
+    }
+    .footer-nav a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="weekly-container">
+    <h1>이번 주 근무 현황 🏃‍♀️</h1>
+    <p style="text-align:center; color:#777; margin-bottom:30px;">{{ week_range_label }}</p>
+
+    {% for u in week_data %}
+      <div class="runner-row">
+        <div class="runner-info">
+          {% if u.avatar_path %}
+            <img src="/{{ u.avatar_path }}" class="avatar-small">
+          {% else %}
+            <img src="https://via.placeholder.com/60" class="avatar-small">
+          {% endif %}
+          <div>{{ u.username }}</div>
+        </div>
+
+        <div class="track">
+          <div class="track-line">
+            <div class="runner-icon" style="left: {{ u.track_percent }}%;">🏃</div>
+            <div class="finish-flag">🏁</div>
+          </div>
+        </div>
+
+        <div class="runner-stats">
+          {{ u.week_hours }}시간 {{ u.week_mins }}분 / 40시간
+          {% if u.overwork %}
+            <span class="overwork-flag">🔥 초과근무</span>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+
+    <div class="footer-nav">
+      <a href="{{ url_for('dashboard') }}">🏠 대시보드로</a>
+      <a href="{{ url_for('profiles') }}">👥 팀 상태판</a>
+    </div>
+  </div>
+
+</body>
+</html>

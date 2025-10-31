@@ -900,6 +900,54 @@ def weekly():
         week_range_label=week_range_label,
     )
 
+@app.route("/admin_force_checkout/<int:user_id>", methods=["POST"])
+def admin_force_checkout(user_id):
+    # 관리자만 사용 가능
+    if not session.get("is_admin", False):
+        return redirect(url_for("dashboard"))
+
+    today = date.today().isoformat()
+    now = datetime.now().strftime("%H:%M:%S")
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # 해당 유저의 오늘 열린(퇴근 안 찍은) 근무 레코드 찾기
+    c.execute(
+        """
+        SELECT id, time_in
+        FROM attendance
+        WHERE user_id=? AND date=? AND time_out IS NULL
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (user_id, today)
+    )
+    rec = c.fetchone()
+
+    if rec:
+        t_in = datetime.strptime(rec["time_in"], "%H:%M:%S")
+        t_out = datetime.strptime(now, "%H:%M:%S")
+        delta_min = int((t_out - t_in).total_seconds() // 60)
+        if delta_min < 0:
+            delta_min = 0
+
+        c.execute(
+            """
+            UPDATE attendance
+            SET time_out=?, work_minutes=?
+            WHERE id=?
+            """,
+            (now, delta_min, rec["id"])
+        )
+        conn.commit()
+        flash("해당 사용자를 퇴근 처리했습니다.")
+    else:
+        flash("해당 사용자는 오늘 근무중 상태가 아닙니다.")
+
+    conn.close()
+    return redirect(url_for("admin"))
+
 if __name__ == "__main__":
     # 0.0.0.0 으로 열어야 다른 PC에서 접속 가능
     app.run(host="0.0.0.0", port=5001, debug=True)

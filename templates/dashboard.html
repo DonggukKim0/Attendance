@@ -27,8 +27,6 @@
   <p><a href="{{ url_for('logout') }}">로그아웃</a></p>
   <p><a href="{{ url_for('change_password') }}">비밀번호 변경</a></p>
   <p><a href="{{ url_for('profiles') }}">팀 상태판 보기 👀</a></p>
-  {% if is_admin %}
-  <p><a href="{{ url_for('admin') }}">관리자 페이지</a></p>
-  {% endif %}
+  <p><a href="{{ url_for('weekly') }}">🏃 주간 현황판 보기</a></p>
 </body>
 </html>

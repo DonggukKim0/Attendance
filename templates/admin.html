@@ -3,82 +3,211 @@
 <head>
   <meta charset="utf-8">
   <title>관리자 페이지</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+      background: #f5f6fa;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    h3 {
+      margin-top: 28px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+      padding: 16px 20px;
+      margin-bottom: 24px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 14px;
+    }
+    thead th {
+      background: #e9ecf5;
+      text-align: left;
+      padding: 8px 10px;
+      font-weight: 600;
+      border-bottom: 1px solid #ccd2e0;
+    }
+    tbody td {
+      background: #fff;
+      padding: 8px 10px;
+      border-bottom: 1px solid #eceff5;
+      vertical-align: middle;
+    }
+    .status-dot-working {
+      color: #00a000;
+      font-weight: 600;
+      font-size: 12px;
+      margin-left: 6px;
+    }
+    .status-dot-off {
+      color: #999;
+      font-size: 12px;
+      margin-left: 6px;
+    }
+    .admin-action-btn {
+      background:#d93025;
+      color:#fff;
+      border:none;
+      border-radius:4px;
+      padding:4px 8px;
+      font-size:12px;
+      cursor:pointer;
+    }
+    .admin-action-btn.secondary {
+      background:#4a4a4a;
+    }
+    .footer-links {
+      text-align:center;
+      font-size:14px;
+      margin-top:24px;
+      line-height:1.6;
+    }
+    .footer-links a {
+      color:#3366cc;
+      text-decoration:none;
+      margin:0 8px;
+    }
+    .footer-links a:hover {
+      text-decoration:underline;
+    }
+    .flash-area {
+      margin: 12px 0 20px;
+      font-size: 14px;
+      color: #d93025;
+      font-weight: 500;
+      list-style: none;
+      padding-left: 0;
+    }
+    .flash-area li {
+      margin-bottom: 4px;
+    }
+  </style>
 </head>
 <body>
-  <h2>{{ month }} 월 근무 현황</h2>
 
-  {% with messages = get_flashed_messages() %}
-    {% if messages %}
-      <ul>
-      {% for m in messages %}
-        <li>{{ m }}</li>
-      {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
+  <div class="card">
+    <h2>{{ month }} 월 근무 현황</h2>
 
-  <h3>사람별 합계</h3>
-  <table border="1" cellpadding="5">
-    <tr>
-      <th>이름</th>
-      <th>합계(분)</th>
-      <th>합계(시:분)</th>
-      <th>관리</th>
-    </tr>
-    {% for row in per_user %}
-      {% set h = (row.total_min // 60) %}
-      {% set m = (row.total_min % 60) %}
-      <tr>
-        <td>{{ row.username }}</td>
-        <td>{{ row.total_min }}</td>
-        <td>{{ "%d:%02d" % (h, m) }}</td>
-        <td>
-          {# 관리자 전용 액션 버튼들 #}
-          {% if session.get('is_admin') %}
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flash-area">
+        {% for m in messages %}
+          <li>{{ m }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
 
-            {# 비밀번호 초기화 버튼: /admin_reset/<username> 에 POST #}
-            <form method="post" action="{{ url_for('admin_reset', username=row.username) }}" style="display:inline;">
-              <button type="submit" onclick="return confirm('{{ row.username }} 비밀번호를 기본값으로 초기화할까요?')">
-                비번초기화
-              </button>
-            </form>
+    <h3>사람별 합계</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:200px;">이름 / 상태</th>
+          <th style="width:140px;">이번달 합계(분)</th>
+          <th style="width:160px;">이번달 합계(시:분)</th>
+          <th style="width:220px;">관리</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in per_user %}
+          {% set h = (row.total_min // 60) %}
+          {% set m = (row.total_min % 60) %}
+          <tr>
+            <td>
+              {{ row.username }}
+              {% if row.uid in active_user_ids %}
+                <span class="status-dot-working">● 근무중</span>
+              {% else %}
+                <span class="status-dot-off">● 퇴근</span>
+              {% endif %}
+            </td>
 
-            {# 유저 삭제 버튼: /admin_delete_user/<username> 에 POST #}
-            {% if row.username != 'dongguk' %}
-            <form method="post" action="{{ url_for('admin_delete_user', username=row.username) }}" style="display:inline; margin-left:4px;">
-              <button type="submit" onclick="return confirm('{{ row.username }} 계정을 완전히 삭제할까요? 이 작업은 복구되지 않습니다.')">
-                삭제
-              </button>
-            </form>
-            {% endif %}
+            <td>{{ row.total_min }}</td>
+            <td>{{ "%d:%02d" % (h, m) }}</td>
 
-          {% endif %}
-        </td>
-      </tr>
-    {% endfor %}
-  </table>
+            <td>
+              {% if session.get('is_admin') %}
 
-  <h3>최근 기록</h3>
-  <table border="1" cellpadding="5">
-    <tr>
-      <th>날짜</th>
-      <th>이름</th>
-      <th>출근</th>
-      <th>퇴근</th>
-      <th>근무(분)</th>
-    </tr>
-    {% for rec in recent %}
-    <tr>
-      <td>{{ rec.date }}</td>
-      <td>{{ rec.username }}</td>
-      <td>{{ rec.time_in }}</td>
-      <td>{{ rec.time_out if rec.time_out else "-" }}</td>
-      <td>{{ rec.work_minutes if rec.work_minutes else "-" }}</td>
-    </tr>
-    {% endfor %}
-  </table>
+                {# 강제 퇴근 버튼: /admin_force_checkout/<user_id> 에 POST  #}
+                {% if row.uid in active_user_ids %}
+                  <form method="post" action="{{ url_for('admin_force_checkout', user_id=row.uid) }}" style="display:inline;">
+                    <button type="submit" class="admin-action-btn" onclick="return confirm('{{ row.username }} 사용자를 지금 퇴근 처리할까요?')">
+                      강제 퇴근
+                    </button>
+                  </form>
+                {% else %}
+                  <span style="color:#666; font-size:12px; margin-right:8px;">(퇴근 상태)</span>
+                {% endif %}
 
-  <p><a href="{{ url_for('dashboard') }}">내 화면으로</a></p>
-  <p><a href="{{ url_for('admin_add_user') }}">➕ 새 유저 추가</a></p>
+                {# 비밀번호 초기화 버튼: /admin_reset/<username> 에 POST #}
+                <form method="post" action="{{ url_for('admin_reset', username=row.username) }}" style="display:inline; margin-left:4px;">
+                  <button type="submit" class="admin-action-btn secondary" onclick="return confirm('{{ row.username }} 비밀번호를 기본값으로 초기화할까요?')">
+                    비번초기화
+                  </button>
+                </form>
+
+                {# 유저 삭제 버튼: /admin_delete_user/<username> 에 POST #}
+                {% if row.username != 'dongguk' %}
+                <form method="post" action="{{ url_for('admin_delete_user', username=row.username) }}" style="display:inline; margin-left:4px;">
+                  <button type="submit" class="admin-action-btn" onclick="return confirm('{{ row.username }} 계정을 완전히 삭제할까요? 이 작업은 복구되지 않습니다.')">
+                    삭제
+                  </button>
+                </form>
+                {% endif %}
+
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>최근 기록</h3>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:120px;">날짜</th>
+          <th style="width:140px;">이름</th>
+          <th style="width:100px;">출근</th>
+          <th style="width:100px;">퇴근</th>
+          <th style="width:120px;">근무(분)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in recent %}
+        <tr>
+          <td>{{ rec.date }}</td>
+          <td>{{ rec.username }}</td>
+          <td>{{ rec.time_in }}</td>
+          <td>{{ rec.time_out if rec.time_out else '-' }}</td>
+          <td>{{ rec.work_minutes if rec.work_minutes else '-' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer-links">
+    <a href="{{ url_for('dashboard') }}">🏠 내 화면으로</a>
+    <a href="{{ url_for('profiles') }}">👥 팀 상태판</a>
+    <a href="{{ url_for('weekly') }}">🏃 주간 현황판</a>
+    <a href="{{ url_for('admin_add_user') }}">➕ 새 유저 추가</a>
+  </div>
+
 </body>
 </html>

@@ -50,23 +50,16 @@
     }
     .track-line {
       position: relative;
-      height: 20px; /* thicker bar */
-      background: linear-gradient(90deg, #cce5ff, #99ccff);
+      height: 20px;
+      background: #e0e0e0;
       border-radius: 10px;
       overflow: hidden;
     }
-    .runner-icon {
-      position: absolute;
-      top: -24px; /* raise emoji above bar */
-      transform: translateX(-50%);
-      font-size: 22px; /* make emoji a bit smaller */
-      transition: left 0.8s ease;
-    }
-    .finish-flag {
-      position: absolute;
-      right: 0;
-      top: -22px;
-      font-size: 18px;
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #66bb6a, #43a047);
+      border-radius: 10px 0 0 10px;
+      transition: width 1s ease-in-out;
     }
     .runner-stats {
       width: 180px;
@@ -113,8 +106,7 @@
 
         <div class="track">
           <div class="track-line">
-            <div class="runner-icon" style="left: {{ u.track_percent }}%;">🚗</div>
-            <div class="finish-flag">🏁</div>
+            <div class="progress-fill" style="width: {{ u.track_percent }}%;"></div>
           </div>
         </div>
 

@@ -57,9 +57,9 @@
     }
     .runner-icon {
       position: absolute;
-      top: -26px; /* raise emoji above bar */
+      top: -24px; /* raise emoji above bar */
       transform: translateX(-50%);
-      font-size: 28px; /* make emoji larger */
+      font-size: 22px; /* make emoji a bit smaller */
       transition: left 0.8s ease;
     }
     .finish-flag {
@@ -113,7 +113,7 @@
 
         <div class="track">
           <div class="track-line">
-            <div class="runner-icon" style="left: {{ u.track_percent }}%;">🏃</div>
+            <div class="runner-icon" style="left: {{ u.track_percent }}%;">🚗</div>
             <div class="finish-flag">🏁</div>
           </div>
         </div>

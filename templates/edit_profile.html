@@ -3,39 +3,224 @@
 <head>
   <meta charset="utf-8">
   <title>내 프로필 수정</title>
+  <style>
+    :root {
+      --bg-page: #f5f6fa;
+      --bg-card: #ffffff;
+      --border-soft: rgba(0,0,0,0.06);
+      --text-main: #2b2e3a;
+      --text-dim: #6b6e82;
+      --accent-blue: #4f6bed;
+      --accent-blue-hover: #3248c7;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 8px;
+      --shadow-card: 0 24px 40px rgba(0,0,0,0.08);
+      --shadow-soft: 0 12px 24px rgba(0,0,0,0.06);
+      --shadow-focus: 0 0 0 4px rgba(79,107,237,0.18);
+      --font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg-page);
+      font-family: var(--font-family);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page-wrap {
+      max-width: 520px;
+      margin: 40px auto 60px auto;
+      padding: 0 16px;
+    }
+
+    .header-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--border-soft);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .head-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-main);
+      line-height: 1.3;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+
+    .head-desc {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.4;
+      margin-bottom: 16px;
+    }
+
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 10px;
+      font-size: 13px;
+    }
+
+    .nav-links a {
+      text-decoration: none;
+      color: var(--accent-blue);
+      font-weight: 500;
+      background: #f5f6fa;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(0,0,0,0.05);
+      padding: 8px 10px;
+      box-shadow: var(--shadow-soft);
+      transition: all 0.15s ease;
+    }
+
+    .nav-links a:hover {
+      background: #eef0f3;
+      color: var(--accent-blue-hover);
+    }
+
+    .flash-area {
+      list-style: none;
+      margin: 0 0 16px 0;
+      padding: 0;
+    }
+
+    .flash-area li {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      line-height: 1.4;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .form-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--border-soft);
+      padding: 24px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 80px;
+      resize: vertical;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text-main);
+      background: #f5f6fa;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(0,0,0,0.08);
+      padding: 12px;
+      box-shadow: var(--shadow-soft);
+      outline: none;
+      transition: all 0.15s ease;
+    }
+
+    textarea:focus {
+      background: #fff;
+      border: 1px solid var(--accent-blue);
+      box-shadow: var(--shadow-focus);
+    }
+
+    input[type="file"] {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .avatar-preview {
+      margin-top: 8px;
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid rgba(0,0,0,0.08);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .submit-btn {
+      appearance: none;
+      border: 0;
+      border-radius: var(--radius-md);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.3;
+      padding: 14px 16px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, #4f6bed 0%, #7c93ff 100%);
+      box-shadow: 0 16px 32px rgba(79,107,237,0.4);
+      transition: all 0.15s ease;
+    }
+
+    .submit-btn:hover {
+      box-shadow: 0 20px 40px rgba(79,107,237,0.55);
+    }
+  </style>
 </head>
 <body>
-  <h2>내 프로필 수정</h2>
+  <div class="page-wrap">
 
-  {% with messages = get_flashed_messages() %}
-    {% if messages %}
-      <ul>
-      {% for m in messages %}
-        <li>{{ m }}</li>
-      {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
+    <section class="header-card">
+      <div class="head-title">내 프로필 수정 ✏️</div>
+      <div class="head-desc">상태 메시지와 프로필 이미지를 업데이트하여 나만의 개성을 표현해보세요.</div>
+      <div class="nav-links">
+        <a href="{{ url_for('dashboard') }}">🏠 내 대시보드</a>
+        <a href="{{ url_for('profiles') }}">👥 팀 상태판</a>
+      </div>
+    </section>
 
-  <form method="post" enctype="multipart/form-data">
-    <p>
-      <label>상태 메시지</label><br>
-      <textarea name="status_msg" rows="3" cols="30">{{ me["status_msg"] if me["status_msg"] else "" }}</textarea>
-    </p>
-
-    <p>
-      <label>프로필 이미지 (선택)</label><br>
-      <input type="file" name="avatar"><br>
-      {% if me["avatar_path"] %}
-        <img src="{{ url_for('static', filename=me['avatar_path'].split('static/')[1]) }}"
-             style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-top:8px; border:1px solid #aaa;">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flash-area">
+          {% for m in messages %}
+            <li>{{ m }}</li>
+          {% endfor %}
+        </ul>
       {% endif %}
-    </p>
+    {% endwith %}
 
-    <button type="submit">저장</button>
-  </form>
+    <section class="form-card">
+      <form method="post" enctype="multipart/form-data">
+        <div>
+          <label>상태 메시지</label>
+          <textarea name="status_msg" rows="3">{{ me["status_msg"] if me["status_msg"] else "" }}</textarea>
+        </div>
 
-  <p><a href="{{ url_for('profiles') }}">팀 상태판으로</a></p>
-  <p><a href="{{ url_for('dashboard') }}">대시보드로 돌아가기</a></p>
+        <div>
+          <label>프로필 이미지 (선택)</label><br>
+          <input type="file" name="avatar">
+          {% if me["avatar_path"] %}
+            <img src="/{{ me['avatar_path'] }}" alt="avatar" class="avatar-preview">
+          {% endif %}
+        </div>
+
+        <button class="submit-btn" type="submit">저장</button>
+      </form>
+    </section>
+
+  </div>
 </body>
 </html>

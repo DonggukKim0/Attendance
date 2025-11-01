@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 import os
 from werkzeug.utils import secure_filename
+import random  # <--- 새로 추가
 
 app = Flask(__name__)
 app.secret_key = "change-this-to-random-value"
@@ -65,7 +66,6 @@ def get_db():
         )
 
         # 2) 직전 달 DB에서 users 복사 시도
-        #    ex) 지금이 2025_11이면 prev_ym은 2025_10
         now_dt = datetime.now()
         cur_year = now_dt.year
         cur_month = now_dt.month
@@ -132,10 +132,198 @@ def get_db():
 
     return conn
 
+#############################################
+# Lucky Event 전용 DB (lucky.db)
+#############################################
 
-# 오늘 날짜 기준으로 time_out 이 아직 NULL 인 출근 레코드가 있는 user_id 들을 set 으로 반환한다.
-# 즉, '출근 찍고 아직 퇴근 안 한 사람들' = 현재 근무 중 (초록불)
-# 퇴근까지 끝난 사람은 이 set 에 안 들어감 (빨간불)
+LUCKY_DB_PATH = BASE_DIR / "lucky.db"
+
+def get_lucky_db():
+    """
+    lucky.db에 연결하고, 없으면 생성 + 테이블 생성.
+    테이블:
+      picks(
+        id INTEGER PK,
+        date TEXT,
+        user_id INTEGER,
+        code TEXT,
+        is_winner INTEGER DEFAULT 0,
+        UNIQUE(date, user_id)
+      )
+
+      daily_draw(
+        date TEXT PRIMARY KEY,
+        winning_code TEXT,
+        drawn_at TEXT
+      )
+    """
+    first_time_lucky = not LUCKY_DB_PATH.exists()
+
+    conn_l = sqlite3.connect(LUCKY_DB_PATH)
+    conn_l.row_factory = sqlite3.Row
+    c = conn_l.cursor()
+
+    # picks 테이블
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS picks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT,
+            user_id INTEGER,
+            code TEXT,
+            is_winner INTEGER DEFAULT 0,
+            UNIQUE(date, user_id)
+        )
+        """
+    )
+
+    # daily_draw 테이블
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS daily_draw (
+            date TEXT PRIMARY KEY,
+            winning_code TEXT,
+            drawn_at TEXT
+        )
+        """
+    )
+
+    conn_l.commit()
+    return conn_l
+
+def generate_random_winning_code():
+    """
+    1~5 사이에서 서로 다른 숫자 3개를 뽑아서 순서를 랜덤하게 섞은 뒤
+    "a-b-c" 형태 문자열로 반환한다. 예: "2-5-1"
+    """
+    nums = [1, 2, 3, 4, 5]
+    pick3 = random.sample(nums, 3)  # 예: [2,5,1]
+    return f"{pick3[0]}-{pick3[1]}-{pick3[2]}"
+
+def ensure_daily_draw(conn_lucky):
+    """
+    오늘 날짜에 대해 daily_draw 에 레코드가 있는지 확인하고,
+    17:00 이후인데 winning_code 가 아직 없으면 뽑아서 확정 짓는다.
+
+    이후 winners 업데이트:
+      picks.code == winning_code 인 row 들은 is_winner=1 로 갱신.
+    """
+    today_str = date.today().isoformat()  # 'YYYY-MM-DD'
+    now_hhmm = datetime.now().strftime("%H%M")  # '1704' 같은 문자열
+
+    c = conn_lucky.cursor()
+
+    # 오늘 daily_draw row 확보 (없으면 placeholder 생성)
+    c.execute(
+        "SELECT winning_code FROM daily_draw WHERE date=?",
+        (today_str,)
+    )
+    row = c.fetchone()
+
+    if row is None:
+        c.execute(
+            "INSERT INTO daily_draw(date, winning_code, drawn_at) VALUES (?, NULL, NULL)",
+            (today_str,)
+        )
+        conn_lucky.commit()
+        return
+
+    winning_code = row["winning_code"]
+
+    # 이미 추첨 완료된 경우
+    if winning_code is not None and winning_code != "":
+        return
+
+    # 아직 미추첨이고, 17:00 이후면 추첨
+    if now_hhmm >= "1700":
+        draw_code = generate_random_winning_code()
+        draw_time = datetime.now().strftime("%H:%M:%S")
+
+        # daily_draw 업데이트
+        c.execute(
+            "UPDATE daily_draw SET winning_code=?, drawn_at=? WHERE date=?",
+            (draw_code, draw_time, today_str)
+        )
+
+        # 당첨자들 is_winner=1
+        c.execute(
+            """
+            UPDATE picks
+            SET is_winner=1
+            WHERE date=? AND code=?
+            """,
+            (today_str, draw_code)
+        )
+        conn_lucky.commit()
+
+def get_today_lucky_info(conn_lucky, user_id):
+    """
+    대시보드/프로필에서 보여줄 정보를 한 번에 읽는다.
+    반환 dict 예:
+    {
+      "my_code": "2-5-1" 또는 None,
+      "my_win": True/False/None,
+      "winning_code": "2-5-1" 또는 None,
+      "winners_list": [user_id1, user_id2, ...]  # 오늘 당첨자 user_id 리스트
+    }
+    """
+    today_str = date.today().isoformat()
+    info = {
+        "my_code": None,
+        "my_win": None,
+        "winning_code": None,
+        "winners_list": [],
+    }
+
+    c = conn_lucky.cursor()
+
+    # 내 pick
+    c.execute(
+        "SELECT code, is_winner FROM picks WHERE date=? AND user_id=?",
+        (today_str, user_id)
+    )
+    r = c.fetchone()
+    if r:
+        info["my_code"] = r["code"]
+        info["my_win"] = bool(r["is_winner"])
+
+    # 오늘 winning_code
+    c.execute(
+        "SELECT winning_code FROM daily_draw WHERE date=?",
+        (today_str,)
+    )
+    drow = c.fetchone()
+    if drow:
+        info["winning_code"] = drow["winning_code"]
+
+    # 오늘 당첨자들(user_id만 가져온다)
+    c.execute(
+        "SELECT user_id FROM picks WHERE date=? AND is_winner=1",
+        (today_str,)
+    )
+    wins = c.fetchall()
+    info["winners_list"] = [w["user_id"] for w in wins]
+
+    return info
+
+def validate_lucky_numbers(n1, n2, n3):
+    """
+    사용자가 제출한 세 개의 숫자(n1,n2,n3)가 모두 '1'~'5' 범위인지,
+    그리고 서로 다른지(중복 금지) 검사한다.
+    유효하면 "a-b-c" 문자열을 반환하고,
+    무효하면 None 을 반환한다.
+    """
+    nums = [n1, n2, n3]
+    for v in nums:
+        if v not in ["1", "2", "3", "4", "5"]:
+            return None
+    if len(set(nums)) != 3:
+        return None
+    return f"{nums[0]}-{nums[1]}-{nums[2]}"
+
+#############################################
+# 기존 기능들 (자동 퇴근 등)
+#############################################
 
 def get_active_user_ids_for_today(conn):
     """
@@ -157,21 +345,15 @@ def get_active_user_ids_for_today(conn):
     active_ids = {r[0] for r in rows}
     return active_ids
 
-# -------------------------------------------------------------------------
-# 자동 퇴근 처리: 어제(또는 그 이전) 출근만 찍고 퇴근(time_out)이 비어 있는 레코드를 자동으로 마감
 def auto_close_old_open_shifts(conn):
     """
     어제(또는 그 이전 날) 출근만 찍고 퇴근(time_out)이 비어 있는 레코드를 자동으로 마감한다.
-    마감 규칙:
-      - time_out 을 '23:59:59' 로 넣는다.
-      - work_minutes 는 time_in 부터 23:59:59 까지의 분으로 계산한다.
-    오늘 날짜의 열린 레코드는 건드리지 않는다 (아직 근무중일 수 있으니까).
-    이 함수는 각 페이지 진입 시 한 번씩 호출해도 큰 부담이 없다.
+    time_out='23:59:59', work_minutes = time_in ~ 23:59:59 분.
+    오늘의 열린 레코드는 건드리지 않는다.
     """
     cur_date = date.today().isoformat()
     c = conn.cursor()
 
-    # 어제 이전의 열린 근무(퇴근 안 찍은) 기록을 전부 가져온다
     c.execute(
         """
         SELECT id, date, time_in
@@ -185,12 +367,9 @@ def auto_close_old_open_shifts(conn):
 
     for r in rows:
         rec_id = r["id"]
-        work_date = r["date"]           # 'YYYY-MM-DD'
-        t_in_str = r["time_in"]          # 'HH:MM:SS'
-        # 강제로 마감 시간을 23:59:59 로 고정
+        t_in_str = r["time_in"]
         forced_out_str = "23:59:59"
 
-        # work_minutes 계산
         try:
             t_in_dt = datetime.strptime(t_in_str, "%H:%M:%S")
             t_out_dt = datetime.strptime(forced_out_str, "%H:%M:%S")
@@ -212,31 +391,19 @@ def auto_close_old_open_shifts(conn):
     if rows:
         conn.commit()
 
-
 def hash_password(plain_password: str) -> str:
-    """주어진 비밀번호를 해시 문자열로 변환한다."""
     return generate_password_hash(plain_password)
 
 def verify_password(stored_password: str, provided_password: str) -> bool:
-    """
-    DB에 저장된 비밀번호(`stored_password`)와 사용자가 입력한 비밀번호(`provided_password`)가
-    일치하는지 확인한다.
-
-    - 과거 버전: 비밀번호를 평문으로 저장했을 수 있음 (예: "1111").
-    - 새 버전: generate_password_hash()로 해시된 문자열 (pbkdf2:sha256:... 형태).
-
-    전략:
-    1) stored_password가 해시 형태면 check_password_hash()로 검증.
-    2) 아니면 평문 비교.
-    """
     if not stored_password:
         return False
-    # 해시 방식으로 저장된 경우 (werkzeug 스타일)
     if stored_password.startswith("pbkdf2:") or "$" in stored_password:
         return check_password_hash(stored_password, provided_password)
-    # 평문으로 저장된 경우
     return stored_password == provided_password
 
+#############################################
+# 라우트들
+#############################################
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -297,15 +464,36 @@ def dashboard():
     hours = total_min // 60
     mins = total_min % 60
 
+    # ----- Lucky info -----
+    lconn = get_lucky_db()
+    ensure_daily_draw(lconn)  # 17:00 이후면 추첨/당첨 반영
+    lucky_info = get_today_lucky_info(lconn, user_id)
+    lconn.close()
+
     return render_template(
         "dashboard.html",
         username=username,
         open_rec=open_rec,
         month_hours=hours,
         month_mins=mins,
-        is_admin=session.get("is_admin", False)
+        is_admin=session.get("is_admin", False),
+        # lucky info
+        my_lucky_code=lucky_info["my_code"],
+        my_lucky_win=lucky_info["my_win"],
+        winning_code_today=lucky_info["winning_code"],
     )
 
+@app.route("/punch_form")
+def punch_form():
+    """
+    출근 전, 럭키 코드(1~5 중 서로 다른 숫자 3개)를 입력받는 페이지.
+    이후 제출은 /punch_in 으로 POST 전송하게 된다.
+    punch_form.html 은 별도 템플릿에서 다룬다.
+    """
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    return render_template("punch_form.html")
 
 @app.route("/punch_in", methods=["POST"])
 def punch_in():
@@ -316,9 +504,19 @@ def punch_in():
     today = date.today().isoformat()
     now = datetime.now().strftime("%H:%M:%S")
 
+    # 사용자가 제출한 lucky numbers (세 칸)
+    n1 = request.form.get("n1", "").strip()
+    n2 = request.form.get("n2", "").strip()
+    n3 = request.form.get("n3", "").strip()
+
+    lucky_code = validate_lucky_numbers(n1, n2, n3)
+    if lucky_code is None:
+        flash("형식이 올바르지 않습니다. 1~5에서 서로 다른 숫자 3개를 입력하세요.")
+        return redirect(url_for("punch_form"))
+
+    # 근태 DB에 출근 기록
     conn = get_db()
     c = conn.cursor()
-    # 이미 오늘 열린 기록이 있는지 확인
     c.execute("""
         SELECT id FROM attendance
         WHERE user_id=? AND date=? AND time_out IS NULL
@@ -332,8 +530,21 @@ def punch_in():
         conn.commit()
     conn.close()
 
-    return redirect(url_for("dashboard"))
+    # lucky.db 에 오늘 pick 저장
+    lconn = get_lucky_db()
+    lc = lconn.cursor()
+    lc.execute(
+        """
+        INSERT OR IGNORE INTO picks(date, user_id, code, is_winner)
+        VALUES (?, ?, ?, 0)
+        """,
+        (today, user_id, lucky_code)
+    )
+    lconn.commit()
+    lconn.close()
 
+    flash("출근 완료! 오늘의 럭키 이벤트에 참여되었습니다.")
+    return redirect(url_for("dashboard"))
 
 @app.route("/punch_out", methods=["POST"])
 def punch_out():
@@ -366,10 +577,8 @@ def punch_out():
     conn.close()
     return redirect(url_for("dashboard"))
 
-
 @app.route("/admin")
 def admin():
-    # 관리자만
     if not session.get("is_admin", False):
         return redirect(url_for("dashboard"))
 
@@ -379,13 +588,10 @@ def admin():
     conn = get_db()
     c = conn.cursor()
 
-    # 전날(또는 그 이전) 퇴근 안 찍은 기록 자동 마감
     auto_close_old_open_shifts(conn)
 
-    # 현재 근무중(출근 찍고 아직 퇴근 안 한) 사용자 ID set
     active_user_ids = get_active_user_ids_for_today(conn)
 
-    # 사람별 이번달 합계 (id 포함)
     c.execute(
         """
         SELECT u.id AS uid,
@@ -400,7 +606,6 @@ def admin():
     )
     per_user = c.fetchall()
 
-    # 최근 기록 50개
     c.execute(
         """
         SELECT a.date, u.username, a.time_in, a.time_out, a.work_minutes
@@ -422,10 +627,8 @@ def admin():
         active_user_ids=active_user_ids,
     )
 
-
 @app.route("/change_password", methods=["GET", "POST"])
 def change_password():
-    # 로그인 안 되어 있으면 로그인 페이지로 넘긴다
     if "user_id" not in session:
         return redirect(url_for("login"))
 
@@ -434,7 +637,6 @@ def change_password():
         new_pw = request.form.get("new_password", "").strip()
         new_pw2 = request.form.get("new_password2", "").strip()
 
-        # 새 비밀번호 유효성 검사
         if not new_pw:
             flash("새 비밀번호를 입력하세요.")
             return redirect(url_for("change_password"))
@@ -457,7 +659,6 @@ def change_password():
             flash("현재 비밀번호가 올바르지 않습니다.")
             return redirect(url_for("change_password"))
 
-        # 새 비밀번호를 해시로 저장한다
         new_hashed = hash_password(new_pw)
         c.execute("UPDATE users SET password=? WHERE id=?", (new_hashed, session["user_id"]))
         conn.commit()
@@ -466,18 +667,13 @@ def change_password():
         flash("비밀번호가 변경되었습니다.")
         return redirect(url_for("dashboard"))
 
-    # GET 요청이면 비밀번호 변경 폼을 보여준다
     return render_template("change_password.html")
-
-
 
 @app.route("/admin_reset/<username>", methods=["POST"])
 def admin_reset(username):
-    # 관리자 권한 확인
     if not session.get("is_admin", False):
         return redirect(url_for("dashboard"))
 
-    # 예: 모든 유저의 비밀번호를 "1111"로 초기화 가능
     default_pw = "1111"
     new_hashed = hash_password(default_pw)
 
@@ -490,18 +686,15 @@ def admin_reset(username):
     flash(f"{username} 계정의 비밀번호를 {default_pw} 로 초기화했습니다.")
     return redirect(url_for("admin"))
 
-
-# 관리자만 접근 가능한 유저 추가 라우트
 @app.route("/admin_add_user", methods=["GET", "POST"])
 def admin_add_user():
-    # 관리자만 접근 가능
     if not session.get("is_admin", False):
         return redirect(url_for("dashboard"))
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "").strip()
-        make_admin = request.form.get("is_admin", "0")  # '1'이면 관리자, 아니면 일반
+        make_admin = request.form.get("is_admin", "0")
 
         if not username or not password:
             flash("아이디와 비밀번호를 입력하세요.")
@@ -523,21 +716,16 @@ def admin_add_user():
 
         return redirect(url_for("admin"))
 
-    # GET 요청이면 유저 추가 폼 렌더링
     return render_template("add_user.html")
-
 
 @app.route("/admin_delete_user/<username>", methods=["POST"])
 def admin_delete_user(username):
-    # 관리자만 삭제 가능
     if not session.get("is_admin", False):
         return redirect(url_for("dashboard"))
 
     conn = get_db()
     c = conn.cursor()
 
-    # 1) 먼저 해당 사용자가 관리자이면(=is_admin=1) 삭제를 막고 싶다면 이 블록을 사용한다.
-    #    지금은 실수 방지차원에서 넣어둔다. 관리자를 지우고 싶으면 이 if 블록을 지워도 된다.
     c.execute("SELECT is_admin FROM users WHERE username=?", (username,))
     row = c.fetchone()
     if not row:
@@ -549,13 +737,7 @@ def admin_delete_user(username):
         flash("관리자 계정은 삭제할 수 없습니다.")
         return redirect(url_for("admin"))
 
-    # 2) 근무 기록(attendance)은 남겨두고, users 테이블에서만 계정 삭제한다.
-    #    만약 attendance까지 같이 지우고 싶으면 아래 DELETE FROM attendance ... 를 주석 해제.
-
-    # attendance까지 완전히 제거하려면 다음 줄 주석 해제:
-    # c.execute("DELETE FROM attendance WHERE user_id = (SELECT id FROM users WHERE username=?)", (username,))
-
-    # users 테이블에서 삭제
+    # attendance 까지 삭제하려면 여기에 DELETE FROM attendance ... 넣을 수 있음
     c.execute("DELETE FROM users WHERE username=?", (username,))
 
     conn.commit()
@@ -564,12 +746,8 @@ def admin_delete_user(username):
     flash(f"{username} 계정을 완전히 삭제했습니다.")
     return redirect(url_for("admin"))
 
-
-
-# 공개 회원가입 라우트
 @app.route("/register", methods=["GET", "POST"])
 def register():
-    # 이미 로그인 되어 있으면 대시보드로
     if "user_id" in session:
         return redirect(url_for("dashboard"))
 
@@ -604,7 +782,6 @@ def register():
 
     return render_template("register.html")
 
-
 @app.route("/profiles")
 def profiles():
     if "user_id" not in session:
@@ -615,10 +792,9 @@ def profiles():
     conn = get_db()
     c = conn.cursor()
 
-    # 전날(또는 그 이전) 퇴근 안 찍은 기록 자동 마감
     auto_close_old_open_shifts(conn)
 
-    # 전체 유저 정보 불러오기
+    # 전체 유저
     c.execute(
         """
         SELECT id, username, status_msg, avatar_path
@@ -628,14 +804,17 @@ def profiles():
     )
     raw_people = c.fetchall()
 
-    # 오늘 아직 퇴근 안 한(=근무중) 유저들의 id 세트 (초록불 표시용)
+    # 오늘 근무중(아직 퇴근 안 한) 사람들
     active_user_ids = get_active_user_ids_for_today(conn)
+
+    # id -> username 매핑 (당첨자 이름 보여줄때 필요)
+    id_to_username = {u["id"]: u["username"] for u in raw_people}
 
     people = []
     for u in raw_people:
         uid = u["id"]
 
-        # 1) 오늘 완료된(퇴근까지 한) 레코드들의 work_minutes 합
+        # 오늘 완료된 근무시간
         c.execute(
             """
             SELECT COALESCE(SUM(work_minutes), 0) AS done_min
@@ -647,7 +826,7 @@ def profiles():
         done_row = c.fetchone()
         done_min = done_row["done_min"] if done_row else 0
 
-        # 2) 아직 퇴근 안 한(open) 레코드가 있으면 현재까지 경과시간 추가
+        # 아직 진행중이면 현재까지 경과시간 추가
         c.execute(
             """
             SELECT time_in
@@ -662,11 +841,10 @@ def profiles():
 
         extra_min = 0
         if open_row:
-            t_in_str = open_row["time_in"]  # 'HH:MM:SS'
+            t_in_str = open_row["time_in"]
             try:
                 t_in_dt = datetime.strptime(t_in_str, "%H:%M:%S")
                 now_dt = datetime.now()
-                # now_dt.time() is today's time, so this diff is OK intra-day
                 delta_min = int((now_dt - now_dt.replace(hour=t_in_dt.hour,
                                                          minute=t_in_dt.minute,
                                                          second=t_in_dt.second,
@@ -679,7 +857,7 @@ def profiles():
 
         today_minutes = done_min + extra_min
 
-        # 진행률: 8시간 = 480분 기준
+        # 오늘 하루 진행률 (8시간=480분 기준)
         full_day_min = 8 * 60
         progress_ratio = today_minutes / full_day_min if full_day_min > 0 else 0
         if progress_ratio > 1:
@@ -699,12 +877,25 @@ def profiles():
 
     conn.close()
 
+    # Lucky info for team banner
+    lconn = get_lucky_db()
+    ensure_daily_draw(lconn)
+    lucky_info_for_profiles = get_today_lucky_info(lconn, session["user_id"])
+
+    winner_usernames = []
+    for uid in lucky_info_for_profiles["winners_list"]:
+        if uid in id_to_username:
+            winner_usernames.append(id_to_username[uid])
+
+    lconn.close()
+
     return render_template(
         "profiles.html",
         people=people,
         active_user_ids=active_user_ids,
+        winning_code_today=lucky_info_for_profiles["winning_code"],
+        winner_usernames=winner_usernames,
     )
-
 
 @app.route("/edit_profile", methods=["GET", "POST"])
 def edit_profile():
@@ -719,14 +910,9 @@ def edit_profile():
 
         avatar_path_to_save = None
 
-        # 파일 업로드가 실제로 있었는지 체크
         if avatar_file and avatar_file.filename:
-            # 보안적으로 안전한 파일명으로 변환
             fname_original = avatar_file.filename
             fname_secure = secure_filename(fname_original)
-
-            # username 기반으로 강제 이름 지정하려면 예:
-            # fname_secure = f"{session['username']}.png"
 
             save_path = AVATAR_DIR / fname_secure
             avatar_file.save(save_path)
@@ -753,7 +939,6 @@ def edit_profile():
         flash("프로필이 업데이트되었습니다.")
         return redirect(url_for("profiles"))
 
-    # GET이면 현재 내 정보 읽어서 폼 보여주기
     conn = get_db()
     c = conn.cursor()
     c.execute(
@@ -765,21 +950,16 @@ def edit_profile():
 
     return render_template("edit_profile.html", me=me)
 
-
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
 
-
-# ---------------------------------------------------------
-# 월간 통계 유틸
+#############################################
+# 월간 / 주간 통계 유틸 & 라우트 (기존)
+#############################################
 
 def get_month_range(target_date=None):
-    """
-    이번 달(또는 target_date가 속한 달)의 시작일과 마지막일, 라벨 문자열을 반환한다.
-    예: (2025-11-01(date), 2025-11-30(date), "2025-11-01 ~ 2025-11-30")
-    """
     if target_date is None:
         target_date = datetime.now().date()
 
@@ -790,16 +970,7 @@ def get_month_range(target_date=None):
     label = f"{first_day.strftime('%Y-%m-%d')} ~ {last_day.strftime('%Y-%m-%d')}"
     return first_day, last_day, label
 
-
-
-# Helper: Count business days (Mon-Fri, no holidays)
 def count_business_days(start_date, end_date):
-    """
-    start_date부터 end_date까지 날짜를 하루씩 증가시키면서
-    월(0)~금(4) 요일만 근무일로 센다.
-    토(5), 일(6)은 제외한다.
-    공휴일은 고려하지 않는다.
-    """
     d = start_date
     cnt = 0
     while d <= end_date:
@@ -809,44 +980,23 @@ def count_business_days(start_date, end_date):
     return cnt
 
 def collect_monthly_stats(month_start, month_end):
-    """
-    month_start ~ month_end 사이의 근무시간(분)을 username별로 합산해서
-    월간 리포트용 데이터 구조를 만든다.
-
-    이번 달 목표 근무시간은 (그 달의 평일(월~금) 개수 × 8시간) 으로 계산한다.
-    주말은 제외, 공휴일은 고려하지 않는다.
-
-    반환:
-      results(list), month_target_hours(int)
-      - results[i] = {
-            "username": ..., "avatar_path": ...,
-            "month_hours": h, "month_mins": m,
-            "track_percent": pct_clamped,
-            "overwork": bool,
-        }
-      - month_target_hours = 이번 달 목표 총 시간(시간 단위)
-    """
     ym = month_start.strftime("%Y_%m")
     db_path = BASE_DIR / f"attendance_{ym}.db"
 
     results = []
     if not db_path.exists():
-        # 이번 달 DB 자체가 아직 없으면 빈 리스트와 목표 0을 반환
         return results, 0
 
-    # 이번 달 근무해야 할 평일(월~금) 일수 계산
     biz_days = count_business_days(month_start, month_end)
-    month_target_minutes = biz_days * 8 * 60   # 분 단위 목표치
-    month_target_hours = biz_days * 8          # 시간 단위 목표치 (템플릿에 표시)
+    month_target_minutes = biz_days * 8 * 60
+    month_target_hours = biz_days * 8
 
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
-    # 지난 날들 중 퇴근 미처리된 항목 자동 마감 (23:59:59 처리)
     auto_close_old_open_shifts(conn)
 
-    # 사람별 월간 총 근무시간(분) 합계
     c.execute(
         """
         SELECT u.username,
@@ -868,7 +1018,6 @@ def collect_monthly_stats(month_start, month_end):
         h = total_minutes // 60
         m = total_minutes % 60
 
-        # 퍼센트 계산 (최대 막대는 100%에서 멈춘다)
         if month_target_minutes > 0:
             pct = (total_minutes / month_target_minutes) * 100.0
         else:
@@ -888,51 +1037,25 @@ def collect_monthly_stats(month_start, month_end):
 
     return results, month_target_hours
 
-# ---------------------------------------------------------
-# 주간 현황: 이번 주 (월~일) 동안 각 유저가 얼마나 일했는지 합산해서 보여준다.
-# 레이스 트랙 스타일을 위해 각 유저별로 week_minutes / 2400 비율을 퍼센트로 계산하여
-# 캐릭터 위치로 쓸 수 있도록 넘겨준다.
-
 def get_week_range(today=None):
-    """
-    today 기준으로 이번 주의 월요일(monday)과 일요일(sunday) 날짜 객체를 반환한다.
-    주간 기준: 월요일 시작 ~ 일요일 끝.
-    """
     if today is None:
         today = date.today()
-    monday = today - timedelta(days=today.weekday())  # weekday(): Mon=0 ... Sun=6
+    monday = today - timedelta(days=today.weekday())  # Mon=0
     sunday = monday + timedelta(days=6)
     return monday, sunday
 
-
 def collect_week_minutes_per_user(monday: date, sunday: date):
-    """
-    주간 근무 합계를 username 기준으로 안전하게 계산한다.
-    월이 바뀌면서 같은 사람이 DB마다 다른 id를 가질 수 있으므로,
-    여기서는 user_id 대신 username을 전역 키로 사용한다.
-
-    동작:
-    1) 이번 주 날짜 범위 [monday, sunday]를 문자열(YYYY-MM-DD)로 만든다.
-    2) 이 범위에 걸친 year_month 들 (예: {"2025_10", "2025_11"})을 수집한다.
-    3) 각 month DB에 대해 attendance JOIN users 로 username별 주간 근무합을 가져온다.
-    4) username을 키로 week_minutes를 누적하고, status_msg / avatar_path도 저장한다.
-    5) 최종적으로 week_data 리스트(한 사람당 한 항목)를 반환한다.
-    """
     monday_str = monday.isoformat()
     sunday_str = sunday.isoformat()
 
-    # 이번 주에 필요한 year_month 키들 수집
     ym_keys = set()
     cur_day = monday
     while cur_day <= sunday:
         ym_keys.add(cur_day.strftime("%Y_%m"))
         cur_day += timedelta(days=1)
 
-    # username별 누적 근무 시간(분)
-    per_user_minutes = {}  # { username: total_week_minutes }
-
-    # username별 메타정보 저장
-    user_meta = {}  # { username: {"status_msg":..., "avatar_path":...} }
+    per_user_minutes = {}
+    user_meta = {}
 
     for ym in ym_keys:
         db_path = BASE_DIR / f"attendance_{ym}.db"
@@ -943,8 +1066,6 @@ def collect_week_minutes_per_user(monday: date, sunday: date):
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
 
-        # 1) 이번 주 범위 내 근무 기록 합계 (username 기준)
-        #    같은 username은 달마다 id가 달라도 여기서 묶인다.
         c.execute(
             """
             SELECT u.username AS username,
@@ -962,7 +1083,6 @@ def collect_week_minutes_per_user(monday: date, sunday: date):
             tmin = r["total_min"] if r["total_min"] else 0
             per_user_minutes[uname] = per_user_minutes.get(uname, 0) + tmin
 
-        # 2) 메타정보 저장 (username 기준)
         c.execute(
             """
             SELECT username, status_msg, avatar_path
@@ -980,9 +1100,8 @@ def collect_week_minutes_per_user(monday: date, sunday: date):
 
         conn.close()
 
-    # 3) per_user_minutes + user_meta 를 합쳐서 리스트 형태로 변환
     week_data = []
-    FULL_WEEK_MIN = 40 * 60  # 40시간 = 2400분 기준 바(100%)
+    FULL_WEEK_MIN = 40 * 60  # 40시간
 
     for uname, total_min in per_user_minutes.items():
         hours = total_min // 60
@@ -999,40 +1118,33 @@ def collect_week_minutes_per_user(monday: date, sunday: date):
         })
 
         week_data.append({
-            "id": uname,  # 주간 페이지에서는 username을 사실상 ID로 쓴다.
+            "id": uname,
             "username": uname,
             "status_msg": meta["status_msg"],
             "avatar_path": meta["avatar_path"],
             "week_minutes": total_min,
             "week_hours": hours,
             "week_mins": mins,
-            "track_percent": percent,  # 0~100, 바 채움 비율
-            "overwork": (total_min > FULL_WEEK_MIN),  # 40시간 초과 여부
+            "track_percent": percent,
+            "overwork": (total_min > FULL_WEEK_MIN),
         })
 
-    # username 알파벳순 정렬
     week_data.sort(key=lambda x: x["username"].lower())
     return week_data
 
-
 @app.route("/weekly")
 def weekly():
-    # 로그인 안 되어 있으면 로그인 페이지로 넘긴다
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    # 이번 주(월~일) 범위 계산
     monday, sunday = get_week_range()
 
-    # 이 주에 걸쳐 있는 year_month 들을 전부 구한다.
     ym_keys = set()
     cur_day = monday
     while cur_day <= sunday:
         ym_keys.add(cur_day.strftime("%Y_%m"))
         cur_day += timedelta(days=1)
 
-    # 각 month DB에 대해서, 전날까지 퇴근 안 찍은 기록 자동 마감(auto_close_old_open_shifts)
-    # 이렇게 해야 '어제가 지난달 DB에만 있는 근무'도 마감돼서 주간 합계에 work_minutes가 반영된다.
     for ym in ym_keys:
         db_path = BASE_DIR / f"attendance_{ym}.db"
         if not db_path.exists():
@@ -1042,10 +1154,8 @@ def weekly():
         auto_close_old_open_shifts(tmp_conn)
         tmp_conn.close()
 
-    # 자동 마감 이후에 주간 데이터 수집 (월跨월 지원)
     week_data = collect_week_minutes_per_user(monday, sunday)
 
-    # 템플릿에 넘길 부가 정보
     week_range_label = f"{monday.isoformat()} ~ {sunday.isoformat()}"
 
     return render_template(
@@ -1054,29 +1164,21 @@ def weekly():
         week_range_label=week_range_label,
     )
 
-
-# ---------------------------------------------------------
-# 월간 현황: 이번 달 각 유저별 근무시간 합계
 @app.route("/monthly")
 def monthly():
-    # 로그인 안 되어 있으면 로그인 페이지로 넘긴다
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    # 이번 달 범위 계산
     month_start, month_end, month_label = get_month_range()
 
-    # 월간 데이터 수집 (동적 근무일수 기반 목표 포함)
     month_data, month_target_hours = collect_monthly_stats(month_start, month_end)
 
-    # 팀 전체 누적 근무시간 (이 달)
     total_team_minutes = sum(
         u["month_hours"] * 60 + u["month_mins"] for u in month_data
     )
     team_h = total_team_minutes // 60
     team_m = total_team_minutes % 60
 
-    # 이번 달 가장 오래 일한 사용자 (month_data는 total_minutes DESC 순)
     top_user = month_data[0] if len(month_data) > 0 else None
 
     return render_template(
@@ -1088,54 +1190,6 @@ def monthly():
         top_user=top_user,
         month_target_hours=month_target_hours,
     )
-
-@app.route("/admin_force_checkout/<int:user_id>", methods=["POST"])
-def admin_force_checkout(user_id):
-    # 관리자만 사용 가능
-    if not session.get("is_admin", False):
-        return redirect(url_for("dashboard"))
-
-    today = date.today().isoformat()
-    now = datetime.now().strftime("%H:%M:%S")
-
-    conn = get_db()
-    c = conn.cursor()
-
-    # 해당 유저의 오늘 열린(퇴근 안 찍은) 근무 레코드 찾기
-    c.execute(
-        """
-        SELECT id, time_in
-        FROM attendance
-        WHERE user_id=? AND date=? AND time_out IS NULL
-        ORDER BY id DESC
-        LIMIT 1
-        """,
-        (user_id, today)
-    )
-    rec = c.fetchone()
-
-    if rec:
-        t_in = datetime.strptime(rec["time_in"], "%H:%M:%S")
-        t_out = datetime.strptime(now, "%H:%M:%S")
-        delta_min = int((t_out - t_in).total_seconds() // 60)
-        if delta_min < 0:
-            delta_min = 0
-
-        c.execute(
-            """
-            UPDATE attendance
-            SET time_out=?, work_minutes=?
-            WHERE id=?
-            """,
-            (now, delta_min, rec["id"])
-        )
-        conn.commit()
-        flash("해당 사용자를 퇴근 처리했습니다.")
-    else:
-        flash("해당 사용자는 오늘 근무중 상태가 아닙니다.")
-
-    conn.close()
-    return redirect(url_for("admin"))
 
 if __name__ == "__main__":
     # 0.0.0.0 으로 열어야 다른 PC에서 접속 가능

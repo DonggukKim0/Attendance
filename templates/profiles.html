@@ -18,16 +18,16 @@
     }
 
     .header-card {
-      background: radial-gradient(circle at 20% 20%, #ffffff 0%, #eef0ff 60%, #dfe3ff 100%);
+      background: #ffffff;
       border-radius: 20px;
-      box-shadow: 0 24px 40px rgba(79,107,237,0.18);
+      box-shadow: 0 24px 40px rgba(0,0,0,0.08);
       padding: 20px 24px 24px;
       margin-bottom: 24px;
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: flex-start;
-      border: 1px solid rgba(79,107,237,0.12);
+      border: 1px solid rgba(0,0,0,0.1);
     }
 
     .title-block {
@@ -92,8 +92,8 @@
     .member-card {
       background: #fff;
       border-radius: 16px;
-      box-shadow: 0 20px 36px rgba(0,0,0,0.08);
-      border: 1px solid rgba(0,0,0,0.03);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+      border: 1px solid rgba(0,0,0,0.05);
       padding: 16px 18px 18px;
       display: flex;
       flex-direction: column;
@@ -109,7 +109,7 @@
       bottom: -40px;
       width: 120px;
       height: 120px;
-      background: radial-gradient(circle at 30% 30%, rgba(79,107,237,0.18) 0%, transparent 70%);
+      background: transparent;
       pointer-events: none;
     }
 
@@ -125,8 +125,8 @@
       height: 64px;
       border-radius: 14px;
       background: #eef0ff;
-      box-shadow: 0 12px 28px rgba(79,107,237,0.28);
-      border: 1px solid rgba(79,107,237,0.25);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      border: 1px solid rgba(0,0,0,0.1);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -255,26 +255,6 @@
       transition: width 0.8s ease;
     }
 
-    .footer-nav {
-      margin-top: 32px;
-      font-size: 13px;
-      line-height: 1.5;
-      text-align: center;
-      color: #7e8099;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .footer-nav a {
-      color: #4f6bed;
-      font-weight: 500;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
     .flash-area {
       margin: 0 0 16px 0;
       padding: 0;
@@ -366,11 +346,6 @@
       </div>
     {% endfor %}
   </section>
-
-  <div class="footer-nav">
-    <div><a href="{{ url_for('dashboard') }}">🏠 대시보드로 돌아가기</a></div>
-    <div><a href="{{ url_for('edit_profile') }}">✏️ 내 프로필 수정하기</a></div>
-  </div>
 
 </div>
 </body>

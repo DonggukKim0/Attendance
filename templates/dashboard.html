@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>대시보드</title>
+  <title>출근하기</title>
   <style>
     body {
       margin: 0;
@@ -17,118 +17,65 @@
       padding: 0 16px 40px;
     }
 
-    .hello-card {
-      background: linear-gradient(135deg, #4f6bed 0%, #7c93ff 100%);
-      border-radius: 16px;
-      box-shadow: 0 16px 32px rgba(40,50,130,0.28);
-      color: #fff;
-      padding: 20px 24px 24px;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .hello-top {
-      font-size: 15px;
-      font-weight: 500;
-      opacity: 0.9;
-      margin-bottom: 4px;
-    }
-
-    .hello-name {
+    h1 {
       font-size: 20px;
       font-weight: 600;
-      line-height: 1.3;
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      color: #fff;
+      margin-bottom: 12px;
+      color: #2b2e3a;
     }
 
-    .pill-status {
-      font-size: 12px;
-      font-weight: 500;
-      line-height: 1.4;
-      border-radius: 999px;
-      padding: 3px 8px;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      background: rgba(0,0,0,0.22);
-      color: #fff;
-    }
-
-    .pill-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #00ff85;
-      box-shadow: 0 0 8px rgba(0,255,133,0.8);
-    }
-
-    .pill-dot.off {
-      background: #ff4f4f;
-      box-shadow: 0 0 8px rgba(255,79,79,0.8);
-    }
-
-    .hello-detail {
-      font-size: 13px;
-      font-weight: 400;
-      margin-top: 12px;
-      line-height: 1.5;
-      color: rgba(255,255,255,0.9);
-    }
-
-    .stat-card {
-      background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 12px 28px rgba(0,0,0,0.07);
-      padding: 16px 20px 18px;
+    form {
       margin-top: 20px;
     }
 
-    .stat-header {
+    .numbers-row {
       display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 10px;
-    }
-
-    .stat-title {
-      font-size: 14px;
-      color: #555a75;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .stat-time {
-      font-size: 22px;
-      font-weight: 600;
-      color: #2b2e3a;
-      line-height: 1.2;
-    }
-
-    .timestamp-line {
-      font-size: 13px;
-      color: #7e8099;
-      font-weight: 400;
-      line-height: 1.4;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .punch-wrap {
+      justify-content: center;
+      gap: 16px;
       margin-top: 24px;
+      margin-bottom: 20px;
+    }
+
+    .num-box {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #555a75;
     }
 
-    .punch-btn {
+    .num-box input {
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      border: 2px solid rgba(0,0,0,0.12);
+      background: #fff;
+      font-size: 28px;
+      font-weight: 600;
+      text-align: center;
+      line-height: 1;
+      color: #2b2e3a;
+      padding: 0;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.06);
+      outline: none;
+      transition: all 0.15s ease;
+      letter-spacing: -0.03em;
+    }
+    .num-box input:focus {
+      border-color: #4f6bed;
+      box-shadow: 0 16px 32px rgba(79,107,237,0.25);
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #7e8099;
+      font-weight: 400;
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    button {
       appearance: none;
       border: 0;
       width: 100%;
@@ -141,263 +88,112 @@
       color: #fff;
       background: linear-gradient(135deg, #00c36a 0%, #12d47e 100%);
       box-shadow: 0 10px 20px rgba(0,195,106,0.35);
+      margin-top: 24px;
     }
 
-    .punch-btn.out {
-      background: linear-gradient(135deg, #e14b4b 0%, #ff6b6b 100%);
-      box-shadow: 0 10px 20px rgba(225,75,75,0.35);
-    }
-
-    .section-card {
-      background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 12px 28px rgba(0,0,0,0.07);
-      padding: 16px 20px 10px;
+    .back-link {
       margin-top: 20px;
-    }
-
-    .section-title {
       font-size: 13px;
-      color: #7e8099;
-      font-weight: 500;
-      margin-bottom: 10px;
-      letter-spacing: -0.02em;
-      text-transform: uppercase;
-    }
-
-    .link-list {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px 16px;
-      font-size: 14px;
-      line-height: 1.4;
-    }
-
-    .link-item a {
-      text-decoration: none;
-      color: #2b2e3a;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: #f5f6fa;
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.03);
-      transition: all 0.15s ease;
-    }
-
-    .link-item a:hover {
-      background: #eef0ff;
-      box-shadow: 0 8px 20px rgba(79,107,237,0.18);
-      color: #4f6bed;
-    }
-
-    .admin-hint {
-      font-size: 11px;
-      color: #7e8099;
-      font-weight: 400;
-      line-height: 1.4;
-      margin-top: 8px;
-    }
-
-    .foot-note {
-      margin-top: 28px;
-      font-size: 11px;
       text-align: center;
-      color: #bbbccf;
-      line-height: 1.4;
     }
 
-    .lucky-card {
-      background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 12px 28px rgba(0,0,0,0.07);
-      padding: 16px 20px 18px;
-      margin-top: 20px;
-      font-size: 14px;
-      line-height: 1.5;
-      color: #2b2e3a;
-    }
-    .lucky-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 10px;
-    }
-    .lucky-title {
-      font-size: 14px;
+    .back-link a {
+      color: #4f6bed;
+      text-decoration: none;
       font-weight: 600;
-      color: #555a75;
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
-    .lucky-me {
-      font-size: 13px;
-      font-weight: 500;
-      color: #2b2e3a;
-      margin-bottom: 6px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-    .lucky-win {
-      font-size: 13px;
-      font-weight: 600;
-      color: #00a86b;
-    }
-    .lucky-lose {
-      font-size: 13px;
-      font-weight: 500;
-      color: #7e8099;
-    }
-    .lucky-wait {
-      font-size: 13px;
-      font-weight: 500;
-      color: #7e8099;
-    }
-    .lucky-answer {
-      font-size: 15px;
-      font-weight: 600;
-      color: #2b2e3a;
-      line-height: 1.4;
-    }
-    .lucky-hint {
+    .dup-hint {
       font-size: 12px;
       line-height: 1.4;
-      color: #7e8099;
+      font-weight: 500;
+      color: #e14b4b;
       margin-top: 6px;
+      text-align: center;
+      display: none;
     }
   </style>
 </head>
 <body>
   <div class="wrap">
+    <h1>출근하기</h1>
 
-    <!-- 상단 인사 / 상태 -->
-    <section class="hello-card">
-      <div class="hello-top">안녕하세요</div>
-      <div class="hello-name">
-        <div>{{ username }}님</div>
-
-        {% if open_rec %}
-          <div class="pill-status">
-            <div class="pill-dot"></div>
-            <div>근무중</div>
-          </div>
-        {% else %}
-          <div class="pill-status">
-            <div class="pill-dot off"></div>
-            <div>퇴근상태</div>
-          </div>
-        {% endif %}
-      </div>
-
-      <div class="hello-detail">
-        {% if open_rec %}
-          지금 근무중이에요. 무사히 마무리하고 쉬는 시간 꼭 챙기기 ✨
-        {% else %}
-          오늘은 아직 출근 안 했거나 이미 퇴근했어요. 컨디션 잘 챙기기 🌙
-        {% endif %}
-      </div>
-    </section>
-
-
-    <!-- 출근 / 퇴근 / 누적 시간 -->
-    <section class="stat-card">
-      <div class="stat-header">
-        <div class="stat-title">
-          <span>이번달 누적 근무</span>
+    <form method="post" action="{{ url_for('punch_in') }}">
+      <div class="numbers-row">
+        <div class="num-box">
+          <label for="n1">첫번째</label>
+          <input id="n1" name="n1" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
         </div>
-        <div class="stat-time">{{ month_hours }}시간 {{ month_mins }}분</div>
-      </div>
-
-      {% if open_rec %}
-        <div class="timestamp-line">🕒 오늘 출근: <strong>{{ open_rec.time_in }}</strong></div>
-      {% else %}
-        <div class="timestamp-line">🕒 현재 출근 중이 아닙니다</div>
-      {% endif %}
-
-      <div class="punch-wrap">
-        {% if open_rec %}
-          <form method="post" action="{{ url_for('punch_out') }}">
-            <button type="submit" class="punch-btn out">퇴근하기</button>
-          </form>
-        {% else %}
-          <form method="get" action="{{ url_for('punch_form') }}">
-            <button type="submit" class="punch-btn">출근하기</button>
-          </form>
-        {% endif %}
-      </div>
-    </section>
-
-    <!-- 오늘의 럭키 이벤트 -->
-    <section class="lucky-card">
-      <div class="lucky-head">
-        <div class="lucky-title">🎰 오늘의 럭키 이벤트</div>
-        <div style="font-size:12px; color:#7e8099; font-weight:400;">1~5 중 서로 다른 숫자 3개</div>
-      </div>
-
-      <div class="lucky-me">
-        <div>내 선택:</div>
-        {% if my_lucky_code %}
-          <div><strong>{{ my_lucky_code }}</strong></div>
-        {% else %}
-          <div style="color:#7e8099;">(아직 참여 기록 없음)</div>
-        {% endif %}
-      </div>
-
-      {% if winning_code_today %}
-        <div class="lucky-answer">오늘의 당첨 번호: <span style="color:#4f6bed;">{{ winning_code_today }}</span></div>
-
-        {% if my_lucky_code %}
-          {% if my_lucky_win %}
-            <div class="lucky-win">🎉 축하합니다! 오늘의 행운 근무자예요!</div>
-          {% else %}
-            <div class="lucky-lose">오늘은 아쉽지만 내일 다시 도전 💪</div>
-          {% endif %}
-        {% else %}
-          <div class="lucky-lose">오늘은 참여하지 않았어요.</div>
-        {% endif %}
-
-      {% else %}
-        <div class="lucky-wait">당첨 번호는 17:00 이후 공개됩니다 🔒</div>
-        <div class="lucky-hint">퇴근 전에 다시 들어와서 확인해보세요</div>
-      {% endif %}
-    </section>
-
-
-    <!-- 링크 / 기능 섹션 -->
-    <section class="section-card">
-      <div class="section-title">내 메뉴</div>
-      <div class="link-list">
-        <div class="link-item">
-          <a href="{{ url_for('profiles') }}">👥<span>팀 상태판</span></a>
+        <div class="num-box">
+          <label for="n2">두번째</label>
+          <input id="n2" name="n2" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
         </div>
-        <div class="link-item">
-          <a href="{{ url_for('weekly') }}">📅<span>주간 현황판</span></a>
-        </div>
-        <div class="link-item">
-          <a href="{{ url_for('monthly') }}">📊<span>월간 현황판</span></a>
-        </div>
-        <div class="link-item">
-          <a href="{{ url_for('change_password') }}">🔐<span>비밀번호 변경</span></a>
-        </div>
-        <div class="link-item">
-          <a href="{{ url_for('logout') }}">🚪<span>로그아웃</span></a>
+        <div class="num-box">
+          <label for="n3">세번째</label>
+          <input id="n3" name="n3" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
         </div>
       </div>
 
-      {% if is_admin %}
-        <div class="admin-hint">
-          🔧 관리자 전용 메뉴:
-          <a href="{{ url_for('admin') }}" style="color:#4f6bed; font-weight:500; text-decoration:none;">관리자 페이지</a>
-        </div>
-      {% endif %}
-    </section>
+      <div class="hint">1~5에서 서로 다른 숫자 3개를 선택하세요</div>
+      <div id="dupWarn" class="dup-hint">같은 숫자는 중복으로 넣을 수 없어요 👀</div>
 
-    <div class="foot-note">Attendance System · local only</div>
+      <button type="submit">제출하기</button>
+    </form>
 
+    <div class="back-link">
+      <a href="{{ url_for('dashboard') }}">← 대시보드로 돌아가기</a>
+    </div>
   </div>
+
+  <script>
+    const boxes = [
+      document.getElementById('n1'),
+      document.getElementById('n2'),
+      document.getElementById('n3'),
+    ];
+    const dupWarn = document.getElementById('dupWarn');
+
+    function validateBoxes() {
+      // 내용이 1~5인지 확인하고 중복 여부 확인
+      const vals = boxes.map(b => b.value.trim());
+
+      // 범위 체크: 1~5 아니면 비우기
+      boxes.forEach((b, idx) => {
+        const v = vals[idx];
+        if (!['1','2','3','4','5'].includes(v)) {
+          b.value = '';
+          vals[idx] = '';
+        }
+      });
+
+      // 중복 체크 (비어있지 않은 값만 비교)
+      const filtered = vals.filter(v => v !== '');
+      const unique = new Set(filtered);
+      if (filtered.length !== unique.size) {
+        dupWarn.style.display = 'block';
+      } else {
+        dupWarn.style.display = 'none';
+      }
+    }
+
+    boxes.forEach((box, i) => {
+      box.addEventListener('input', (e) => {
+        // 1글자 넘게 못 쓰도록 강제 (iOS 등에서 붙여넣기 대비)
+        if (box.value.length > 1) {
+          box.value = box.value.slice(0,1);
+        }
+
+        validateBoxes();
+
+        // 값이 하나 채워졌으면 다음 칸으로 이동
+        if (box.value && i < boxes.length - 1) {
+          boxes[i+1].focus();
+        }
+      });
+
+      box.addEventListener('focus', () => {
+        box.select();
+      });
+    });
+  </script>
 </body>
 </html>

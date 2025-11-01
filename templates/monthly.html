@@ -1,0 +1,457 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>월간 통계</title>
+  <style>
+    :root {
+      --bg-page: #f5f6fa;
+      --bg-card: #ffffff;
+      --border-soft: rgba(0,0,0,0.06);
+      --text-main: #2b2e3a;
+      --text-dim: #6b6e82;
+      --accent-blue: #4f6bed;
+      --accent-blue-hover: #3248c7;
+      --accent-fill-start: #00c36a;
+      --accent-fill-mid: #12d47e;
+      --accent-fill-end: #4bf58f;
+      --danger: #d93025;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 8px;
+      --shadow-card: 0 24px 40px rgba(0,0,0,0.08);
+      --shadow-soft: 0 12px 24px rgba(0,0,0,0.06);
+      --font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg-page);
+      font-family: var(--font-family);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page-wrap {
+      max-width: 1000px;
+      margin: 32px auto 60px auto;
+      padding: 0 16px;
+    }
+
+    /* 상단 요약 카드 */
+    .summary-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--border-soft);
+      padding: 24px 24px 20px 24px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+    }
+
+    .summary-left {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 240px;
+    }
+
+    .headline {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.3;
+      color: var(--text-main);
+      letter-spacing: -0.03em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .subline {
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.4;
+      color: var(--text-dim);
+      letter-spacing: -0.02em;
+    }
+
+    .range-box {
+      background: #f5f6fa;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(0,0,0,0.05);
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-main);
+      line-height: 1.4;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.4);
+      max-width: 260px;
+      word-break: break-all;
+    }
+
+    .summary-right {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 200px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .metric-box {
+      background: #f5f6fa;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(0,0,0,0.05);
+      box-shadow: var(--shadow-soft);
+      padding: 12px 14px;
+      min-width: 200px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.4;
+      font-weight: 400;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-main);
+      line-height: 1.4;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .highlight-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.4;
+      color: var(--text-main);
+    }
+
+    .mini-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid rgba(0,0,0,0.08);
+      box-shadow: var(--shadow-soft);
+      background: #f5f6fa;
+    }
+
+    .summary-links {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 160px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .summary-links a {
+      text-decoration: none;
+      color: var(--accent-blue);
+      font-weight: 500;
+      background: #f5f6fa;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(0,0,0,0.05);
+      padding: 8px 10px;
+      box-shadow: var(--shadow-soft);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .summary-links a:hover {
+      background: #eef0f3;
+      color: var(--accent-blue-hover);
+    }
+
+    /* 리스트 카드 */
+    .list-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--border-soft);
+      padding: 16px 20px;
+    }
+
+    .list-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+
+    .list-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .list-hint {
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 1.4;
+      color: var(--text-dim);
+    }
+
+    /* 사용자 행 */
+    .runner-row {
+      display: flex;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .runner-row:last-of-type {
+      border-bottom: 0;
+      padding-bottom: 8px;
+    }
+
+    .runner-info {
+      width: 180px;
+      min-width: 180px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+
+    .avatar-big {
+      width: 60px;
+      height: 60px;
+      border-radius: var(--radius-md);
+      object-fit: cover;
+      border: 1px solid rgba(0,0,0,0.08);
+      background: #f5f6fa;
+      box-shadow: var(--shadow-soft);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .runner-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .progress-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.4;
+      border-radius: 999px;
+      background: #f5f6fa;
+      border: 1px solid rgba(0,0,0,0.05);
+      color: var(--text-main);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00d27a;
+      box-shadow: 0 0 8px rgba(0,210,122,0.8);
+    }
+
+    .runner-track {
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .track-line {
+      width: 100%;
+      height: 14px;
+      background: #e0e3ec;
+      border-radius: 999px;
+      box-shadow: inset 0 0 3px rgba(0,0,0,0.15);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      border-radius: 999px;
+      background: linear-gradient(
+        90deg,
+        var(--accent-fill-start) 0%,
+        var(--accent-fill-mid) 60%,
+        var(--accent-fill-end) 100%
+      );
+      box-shadow: 0 12px 24px rgba(0,195,106,0.4);
+      height: 100%;
+      width: 0%;
+      transition: width 0.8s ease;
+    }
+
+    .runner-stats {
+      width: 200px;
+      min-width: 180px;
+      text-align: right;
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--text-main);
+      font-weight: 500;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .runner-hours {
+      color: var(--text-main);
+    }
+
+    .overwork-flag {
+      color: var(--danger);
+      font-weight: 600;
+      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .note-line {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- 상단 요약 카드 -->
+  <section class="summary-card">
+
+    <div class="summary-left">
+      <div class="headline">이번 달 근무 리포트 📈</div>
+      <div class="subline">개인별 월간 누적 근무시간 (목표 160시간 기준)</div>
+      <div class="range-box">{{ month_range_label }}</div>
+    </div>
+
+    <div class="summary-right">
+      <div class="metric-box">
+        <div class="metric-label">이 달 팀 전체 누적 근무시간</div>
+        <div class="metric-value">
+          <span>{{ team_total_hours }}시간 {{ team_total_mins }}분</span>
+        </div>
+      </div>
+
+      <div class="metric-box">
+        <div class="metric-label">이번 달 가장 오래 일한 사람</div>
+        {% if top_user %}
+          <div class="metric-value">
+            <div class="highlight-user">
+              {% if top_user.avatar_path %}
+                <img src="/{{ top_user.avatar_path }}" class="mini-avatar" alt="avatar">
+              {% else %}
+                <img src="https://via.placeholder.com/32" class="mini-avatar" alt="avatar">
+              {% endif %}
+              <span>{{ top_user.username }}</span>
+            </div>
+            <span>{{ top_user.month_hours }}h {{ top_user.month_mins }}m</span>
+          </div>
+        {% else %}
+          <div class="metric-value">
+            <span>-</span>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="summary-links">
+        <a href="{{ url_for('dashboard') }}">🏠 내 대시보드</a>
+        <a href="{{ url_for('weekly') }}">📅 주간 현황판</a>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- 상세 리스트 카드 -->
+  <section class="list-card">
+    <div class="list-head">
+      <div class="list-title">월간 근무량 랭킹</div>
+      <div class="list-hint">160시간 = 100%</div>
+    </div>
+
+    {% for u in month_data %}
+      <div class="runner-row">
+
+        <!-- 왼쪽: 프로필 / 이름 -->
+        <div class="runner-info">
+          {% if u.avatar_path %}
+            <img src="/{{ u.avatar_path }}" class="avatar-big" alt="avatar">
+          {% else %}
+            <img src="https://via.placeholder.com/60" class="avatar-big" alt="avatar">
+          {% endif %}
+
+          <div class="runner-name">
+            <div>{{ u.username }}</div>
+            <div class="progress-pill">
+              <div class="dot"></div>
+              <div>월 누적</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 가운데: 진행 바 -->
+        <div class="runner-track">
+          <div class="track-line">
+            <div class="progress-fill" style="width: {{ u.track_percent }}%;"></div>
+          </div>
+        </div>
+
+        <!-- 오른쪽: 수치 -->
+        <div class="runner-stats">
+          <div class="runner-hours">
+            {{ u.month_hours }}시간 {{ u.month_mins }}분 / 160시간
+            {% if u.overwork %}
+              <span class="overwork-flag">🔥 초과근무</span>
+            {% endif %}
+          </div>
+          <div class="note-line">이번 달 누적 근무 시간</div>
+        </div>
+
+      </div>
+    {% endfor %}
+  </section>
+
+</div>
+</body>
+</html>

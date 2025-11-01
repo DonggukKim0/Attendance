@@ -3,14 +3,227 @@
 <head>
   <meta charset="utf-8">
   <title>출근도장 로그인</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 20% 20%, #eef1ff 0%, #f5f6fa 40%, #f5f6fa 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, sans-serif;
+      color: #2b2e3a;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .frame {
+      width: 100%;
+      max-width: 360px;
+      padding: 24px 16px 40px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      border: 1px solid rgba(0,0,0,0.06);
+      box-shadow: 0 24px 48px rgba(0,0,0,0.08);
+      padding: 24px 24px 28px;
+      position: relative;
+    }
+
+    /* 상단 작은 배지 */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(79,107,237,0.08);
+      color: #4f6bed;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.3;
+      padding: 5px 8px 5px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(79,107,237,0.18);
+      margin-bottom: 16px;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.35;
+      letter-spacing: -0.03em;
+      color: #2b2e3a;
+      margin-bottom: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #7e8099;
+      margin-bottom: 20px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #555a75;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .input-box {
+      position: relative;
+    }
+
+    .input-box input {
+      width: 100%;
+      border-radius: 12px;
+      border: 2px solid rgba(0,0,0,0.08);
+      background: #fff;
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.4;
+      color: #2b2e3a;
+      padding: 12px 14px;
+      outline: none;
+      transition: all 0.15s ease;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.04);
+    }
+
+    .input-box input:focus {
+      border-color: #4f6bed;
+      box-shadow: 0 20px 36px rgba(79,107,237,0.22);
+    }
+
+    .submit-btn {
+      appearance: none;
+      border: 0;
+      width: 100%;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #4f6bed 0%, #6f8bff 100%);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.3;
+      padding: 13px 16px;
+      cursor: pointer;
+      box-shadow: 0 20px 40px rgba(79,107,237,0.4);
+      transition: all 0.12s ease;
+    }
+
+    .submit-btn:hover {
+      box-shadow: 0 24px 44px rgba(79,107,237,0.5);
+      transform: translateY(-1px);
+    }
+
+    .bottom-area {
+      margin-top: 20px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #7e8099;
+      text-align: center;
+    }
+
+    .bottom-area a {
+      color: #4f6bed;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    /* 작은 푸터 메시지 */
+    .footer-note {
+      font-size: 11px;
+      line-height: 1.4;
+      color: #a0a2b8;
+      text-align: center;
+      margin-top: 24px;
+    }
+
+    /* flash 메시지 영역 (로그인 실패 등) */
+    .flash-area {
+      margin-top: 12px;
+    }
+    .flash-msg {
+      background:#fff3cd;
+      color:#856404;
+      border:1px solid #ffeeba;
+      border-radius:8px;
+      font-size:12px;
+      line-height:1.4;
+      padding:8px 10px;
+      margin-bottom:6px;
+      box-shadow:0 12px 24px rgba(0,0,0,0.07);
+    }
+  </style>
 </head>
 <body>
-  <h2>출근도장</h2>
-  <form method="post">
-    <input name="username" placeholder="username"><br><br>
-    <input name="password" type="password" placeholder="password"><br><br>
-    <button type="submit">로그인</button>
-    <p><a href="{{ url_for('register') }}">회원가입</a></p>
-  </form>
+  <div class="frame">
+    <section class="card">
+      <div class="badge">
+        <span>🔒 팀 근태 시스템</span>
+        <span style="font-weight:500; font-size:10px; color:#4f6bed;">internal</span>
+      </div>
+
+      <div class="title">출근도장 로그인</div>
+      <div class="subtitle">출근하기 전에 먼저 로그인하세요. 오늘 기록은 월간/주간 통계에 반영됩니다.</div>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="flash-area">
+          {% for m in messages %}
+            <div class="flash-msg">{{ m }}</div>
+          {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="post">
+        <div class="field">
+          <div class="field-label">
+            <label for="username">아이디</label>
+          </div>
+          <div class="input-box">
+            <input id="username" name="username" placeholder="username" autocomplete="username" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label">
+            <label for="password">비밀번호</label>
+            <div style="font-size:11px; font-weight:400; color:#a0a2b8;">관리자에게 초기화 요청 가능</div>
+          </div>
+          <div class="input-box">
+            <input id="password" name="password" type="password" placeholder="••••" autocomplete="current-password" required>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn">로그인</button>
+      </form>
+
+      <div class="bottom-area">
+        아직 계정이 없다면? 
+        <a href="{{ url_for('register') }}">회원가입</a>
+      </div>
+
+      <div class="footer-note">오늘의 근무는 오늘의 히어로를 만든다 ✨</div>
+    </section>
+  </div>
 </body>
 </html>

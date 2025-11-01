@@ -3,27 +3,403 @@
 <head>
   <meta charset="utf-8">
   <title>회원가입</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, sans-serif;
+      color: #2b2e3a;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(79,107,237,0.12) 0%, rgba(255,255,255,0) 60%),
+        radial-gradient(circle at 80% 10%, rgba(0,195,106,0.10) 0%, rgba(255,255,255,0) 60%),
+        radial-gradient(circle at 50% 80%, #f5f6fa 0%, #f5f6fa 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px 40px;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 380px;
+      position: relative;
+    }
+
+    /* 뒤쪽 글로우 링 / 약간의 브랜딩 느낌 */
+    .halo {
+      position: absolute;
+      inset: 0;
+      filter: blur(40px);
+      background:
+        radial-gradient(circle at 30% 30%, rgba(79,107,237,0.28) 0%, rgba(79,107,237,0) 70%),
+        radial-gradient(circle at 70% 20%, rgba(0,195,106,0.25) 0%, rgba(0,195,106,0) 70%);
+      opacity: 0.28;
+      border-radius: 32px;
+      pointer-events: none;
+    }
+
+    .card {
+      position: relative;
+      background: #fff;
+      border-radius: 24px;
+      border: 1px solid rgba(0,0,0,0.06);
+      box-shadow:
+        0 32px 64px rgba(0,0,0,0.08),
+        0 4px 16px rgba(0,0,0,0.04);
+      padding: 24px 24px 28px;
+      z-index: 1;
+    }
+
+    /* 상단 헤더 영역 */
+    .badge-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,195,106,0.08);
+      color: #00a86b;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.3;
+      padding: 5px 8px 5px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(0,195,106,0.22);
+    }
+
+    .step-hint {
+      font-size: 11px;
+      line-height: 1.4;
+      font-weight: 500;
+      color: #7e8099;
+      background: rgba(0,0,0,0.04);
+      border-radius: 8px;
+      padding: 4px 8px;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.35;
+      letter-spacing: -0.03em;
+      color: #2b2e3a;
+      margin-bottom: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #7e8099;
+      margin-bottom: 20px;
+    }
+
+    /* flash 메시지 */
+    .flash-area {
+      margin-top: 12px;
+      margin-bottom: 4px;
+    }
+    .flash-msg {
+      background:#fff3cd;
+      color:#856404;
+      border:1px solid #ffeeba;
+      border-radius:8px;
+      font-size:12px;
+      line-height:1.4;
+      padding:8px 10px;
+      margin-bottom:6px;
+      box-shadow:0 12px 24px rgba(0,0,0,0.07);
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .label-main {
+      font-size: 12px;
+      font-weight: 500;
+      color: #555a75;
+    }
+
+    .label-sub {
+      font-size: 11px;
+      font-weight: 400;
+      color: #a0a2b8;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      border-radius: 12px;
+      border: 2px solid rgba(0,0,0,0.08);
+      background: #fff;
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.4;
+      color: #2b2e3a;
+      padding: 12px 14px;
+      outline: none;
+      transition: all 0.15s ease;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.04);
+    }
+
+    .input-wrap input:focus {
+      border-color: #00a86b;
+      box-shadow: 0 20px 36px rgba(0,168,107,0.28);
+    }
+
+    /* password strength bar 시각 요소 */
+    .strength-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+      min-height: 10px;
+    }
+
+    .bar-pack {
+      display: flex;
+      gap: 4px;
+    }
+
+    .bar {
+      width: 28px;
+      height: 4px;
+      background: rgba(0,0,0,0.07);
+      border-radius: 999px;
+      transition: background 0.15s ease;
+    }
+
+    .bar.active-weak {
+      background: #ff937a;
+    }
+    .bar.active-mid {
+      background: #ffd46a;
+    }
+    .bar.active-strong {
+      background: #00c36a;
+    }
+
+    .strength-label {
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.4;
+      color: #7e8099;
+    }
+
+    .submit-btn {
+      appearance: none;
+      border: 0;
+      width: 100%;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #00c36a 0%, #12d47e 100%);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 1.3;
+      padding: 13px 16px;
+      cursor: pointer;
+      box-shadow: 0 20px 40px rgba(0,195,106,0.4);
+      transition: all 0.12s ease;
+    }
+
+    .submit-btn:hover {
+      box-shadow: 0 24px 44px rgba(0,195,106,0.5);
+      transform: translateY(-1px);
+    }
+
+    .footer-area {
+      margin-top: 20px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #7e8099;
+      text-align: center;
+    }
+
+    .footer-area a {
+      color: #4f6bed;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .last-line {
+      font-size: 11px;
+      line-height: 1.4;
+      color: #a0a2b8;
+      text-align: center;
+      margin-top: 24px;
+    }
+  </style>
 </head>
 <body>
-  <h2>회원가입</h2>
+  <div class="shell">
+    <div class="halo"></div>
 
-  {% with messages = get_flashed_messages() %}
-    {% if messages %}
-      <ul>
-      {% for m in messages %}
-        <li>{{ m }}</li>
-      {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
+    <section class="card">
+      <div class="badge-row">
+        <div class="badge">
+          <span>✨ 신규 팀원 등록</span>
+          <span style="font-weight:500; font-size:10px; color:#00a86b;">welcome</span>
+        </div>
+        <div class="step-hint">step 1 / 1</div>
+      </div>
 
-  <form method="post">
-    <label>아이디<br><input type="text" name="username"></label><br><br>
-    <label>비밀번호<br><input type="password" name="password"></label><br><br>
-    <label>비밀번호 확인<br><input type="password" name="password2"></label><br><br>
-    <button type="submit">가입</button>
-  </form>
+      <div class="title">회원가입</div>
+      <div class="subtitle">팀 근태 시스템에 참여할 계정을 만들어요. 이 정보는 월간/주간 통계와 팀 상태판에 사용돼요.</div>
 
-  <p><a href="{{ url_for('login') }}">로그인으로 돌아가기</a></p>
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="flash-area">
+          {% for m in messages %}
+            <div class="flash-msg">{{ m }}</div>
+          {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <form method="post">
+        <!-- 아이디 -->
+        <div class="field">
+          <div class="field-top">
+            <div class="label-main">아이디</div>
+            <div class="label-sub">예: dongguk, user7</div>
+          </div>
+          <div class="input-wrap">
+            <input type="text" name="username" placeholder="아이디 입력" autocomplete="username" required>
+          </div>
+        </div>
+
+        <!-- 비밀번호 -->
+        <div class="field">
+          <div class="field-top">
+            <div class="label-main">비밀번호</div>
+            <div class="label-sub">팀원이 볼 수 없어요</div>
+          </div>
+          <div class="input-wrap">
+            <input id="pw1" type="password" name="password" placeholder="비밀번호" autocomplete="new-password" required>
+          </div>
+          <div class="strength-row">
+            <div class="bar-pack">
+              <div class="bar" id="bar1"></div>
+              <div class="bar" id="bar2"></div>
+              <div class="bar" id="bar3"></div>
+            </div>
+            <div class="strength-label" id="strengthLabel">안전도 확인 중...</div>
+          </div>
+        </div>
+
+        <!-- 비밀번호 확인 -->
+        <div class="field">
+          <div class="field-top">
+            <div class="label-main">비밀번호 확인</div>
+            <div class="label-sub">동일하게 입력해 주세요</div>
+          </div>
+          <div class="input-wrap">
+            <input id="pw2" type="password" name="password2" placeholder="다시 한 번 입력" autocomplete="new-password" required>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn">가입 완료하기</button>
+      </form>
+
+      <div class="footer-area">
+        이미 계정이 있다면?
+        <a href="{{ url_for('login') }}">로그인으로 이동</a>
+      </div>
+
+      <div class="last-line">이 이름과 상태메시지는 팀 상태판에 표시돼요 🌱</div>
+    </section>
+  </div>
+
+  <script>
+    // 매우 가벼운 비밀번호 강도 체커 (프론트엔드 표시용)
+    const pw1 = document.getElementById('pw1');
+    const bar1 = document.getElementById('bar1');
+    const bar2 = document.getElementById('bar2');
+    const bar3 = document.getElementById('bar3');
+    const strengthLabel = document.getElementById('strengthLabel');
+
+    function checkStrength(v) {
+      let score = 0;
+
+      // 길이
+      if (v.length >= 6) score++;
+      if (v.length >= 10) score++;
+
+      // 다양한 문자조합: 숫자/문자/특수문자 혼합 여부 대충 체크
+      const hasNum = /[0-9]/.test(v);
+      const hasAlpha = /[a-zA-Z]/.test(v);
+      const hasEtc = /[^a-zA-Z0-9]/.test(v);
+      if ((hasNum && hasAlpha) || (hasNum && hasEtc) || (hasAlpha && hasEtc)) score++;
+
+      return Math.min(score, 3); // 0~3 사이
+    }
+
+    function renderStrength(level) {
+      // 초기화
+      bar1.className = 'bar';
+      bar2.className = 'bar';
+      bar3.className = 'bar';
+
+      if (level === 0) {
+        strengthLabel.textContent = '너무 짧아요';
+        return;
+      }
+      if (level === 1) {
+        bar1.classList.add('active-weak');
+        strengthLabel.textContent = '조금 약해요';
+        return;
+      }
+      if (level === 2) {
+        bar1.classList.add('active-mid');
+        bar2.classList.add('active-mid');
+        strengthLabel.textContent = '보통이에요';
+        return;
+      }
+      if (level === 3) {
+        bar1.classList.add('active-strong');
+        bar2.classList.add('active-strong');
+        bar3.classList.add('active-strong');
+        strengthLabel.textContent = '아주 좋아요 ✨';
+        return;
+      }
+    }
+
+    pw1.addEventListener('input', () => {
+      const v = pw1.value;
+      const lvl = checkStrength(v);
+      renderStrength(lvl);
+    });
+
+    // 초기 상태
+    renderStrength(0);
+  </script>
 </body>
 </html>

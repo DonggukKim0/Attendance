@@ -209,6 +209,66 @@
       line-height: 1.4;
     }
 
+    .lucky-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.07);
+      padding: 16px 20px 18px;
+      margin-top: 20px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #2b2e3a;
+    }
+    .lucky-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+    .lucky-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #555a75;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .lucky-me {
+      font-size: 13px;
+      font-weight: 500;
+      color: #2b2e3a;
+      margin-bottom: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .lucky-win {
+      font-size: 13px;
+      font-weight: 600;
+      color: #00a86b;
+    }
+    .lucky-lose {
+      font-size: 13px;
+      font-weight: 500;
+      color: #7e8099;
+    }
+    .lucky-wait {
+      font-size: 13px;
+      font-weight: 500;
+      color: #7e8099;
+    }
+    .lucky-answer {
+      font-size: 15px;
+      font-weight: 600;
+      color: #2b2e3a;
+      line-height: 1.4;
+    }
+    .lucky-hint {
+      font-size: 12px;
+      line-height: 1.4;
+      color: #7e8099;
+      margin-top: 6px;
+    }
   </style>
 </head>
 <body>
@@ -264,11 +324,46 @@
             <button type="submit" class="punch-btn out">퇴근하기</button>
           </form>
         {% else %}
-          <form method="post" action="{{ url_for('punch_in') }}">
+          <form method="get" action="{{ url_for('punch_form') }}">
             <button type="submit" class="punch-btn">출근하기</button>
           </form>
         {% endif %}
       </div>
+    </section>
+
+    <!-- 오늘의 럭키 이벤트 -->
+    <section class="lucky-card">
+      <div class="lucky-head">
+        <div class="lucky-title">🎰 오늘의 럭키 이벤트</div>
+        <div style="font-size:12px; color:#7e8099; font-weight:400;">1~5 중 서로 다른 숫자 3개</div>
+      </div>
+
+      <div class="lucky-me">
+        <div>내 선택:</div>
+        {% if my_lucky_code %}
+          <div><strong>{{ my_lucky_code }}</strong></div>
+        {% else %}
+          <div style="color:#7e8099;">(아직 참여 기록 없음)</div>
+        {% endif %}
+      </div>
+
+      {% if winning_code_today %}
+        <div class="lucky-answer">오늘의 당첨 번호: <span style="color:#4f6bed;">{{ winning_code_today }}</span></div>
+
+        {% if my_lucky_code %}
+          {% if my_lucky_win %}
+            <div class="lucky-win">🎉 축하합니다! 오늘의 행운 근무자예요!</div>
+          {% else %}
+            <div class="lucky-lose">오늘은 아쉽지만 내일 다시 도전 💪</div>
+          {% endif %}
+        {% else %}
+          <div class="lucky-lose">오늘은 참여하지 않았어요.</div>
+        {% endif %}
+
+      {% else %}
+        <div class="lucky-wait">당첨 번호는 17:00 이후 공개됩니다 🔒</div>
+        <div class="lucky-hint">퇴근 전에 다시 들어와서 확인해보세요</div>
+      {% endif %}
     </section>
 
 

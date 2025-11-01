@@ -272,6 +272,46 @@
       margin-bottom: 6px;
       box-shadow: 0 12px 24px rgba(0,0,0,0.07);
     }
+    .lucky-banner {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 16px 32px rgba(0,0,0,0.07);
+      border: 1px solid rgba(0,0,0,0.05);
+      padding: 16px 20px 18px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #2b2e3a;
+    }
+    .lucky-banner-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #555a75;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .lucky-banner-main {
+      font-size: 15px;
+      font-weight: 600;
+      color: #2b2e3a;
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+    .lucky-banner-note {
+      font-size: 12px;
+      line-height: 1.4;
+      color: #7e8099;
+    }
+    .winner-names {
+      font-weight: 600;
+      color: #00a86b;
+    }
+    .no-winner {
+      font-weight: 500;
+      color: #7e8099;
+    }
   </style>
 </head>
 <body>
@@ -290,6 +330,28 @@
       <a href="{{ url_for('monthly') }}">📊 월간 현황판</a>
       <a href="{{ url_for('edit_profile') }}">✏️ 내 프로필 수정</a>
     </div>
+  </section>
+
+  <!-- 오늘의 럭키 이벤트 상태 -->
+  <section class="lucky-banner">
+    <div class="lucky-banner-title">🎰 오늘의 럭키 이벤트</div>
+
+    {% if winning_code_today %}
+      <div class="lucky-banner-main">오늘의 당첨 번호: <span style="color:#4f6bed;">{{ winning_code_today }}</span></div>
+
+      {% if winner_usernames and winner_usernames|length > 0 %}
+        <div class="lucky-banner-note">
+          🎉 오늘의 행운 근무자:
+          <span class="winner-names">{{ ", ".join(winner_usernames) }}</span>
+        </div>
+      {% else %}
+        <div class="lucky-banner-note no-winner">오늘은 아직 당첨자가 없어요. 내일은 내가 주인공? 😎</div>
+      {% endif %}
+
+    {% else %}
+      <div class="lucky-banner-main">당첨 번호는 17:00 이후 공개됩니다 🔒</div>
+      <div class="lucky-banner-note">출근할 때 고른 3자리 번호가 그대로 맞으면 오늘의 히어로 👑</div>
+    {% endif %}
   </section>
 
   {% with messages = get_flashed_messages() %}

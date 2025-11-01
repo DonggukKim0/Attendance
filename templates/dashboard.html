@@ -3,30 +3,303 @@
 <head>
   <meta charset="utf-8">
   <title>대시보드</title>
+  <style>
+    body {
+      margin: 0;
+      background: #f5f6fa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, sans-serif;
+      color: #2b2e3a;
+    }
+
+    .wrap {
+      max-width: 480px;
+      margin: 32px auto;
+      padding: 0 16px 40px;
+    }
+
+    .hello-card {
+      background: linear-gradient(135deg, #4f6bed 0%, #7c93ff 100%);
+      border-radius: 16px;
+      box-shadow: 0 16px 32px rgba(40,50,130,0.28);
+      color: #fff;
+      padding: 20px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hello-top {
+      font-size: 15px;
+      font-weight: 500;
+      opacity: 0.9;
+      margin-bottom: 4px;
+    }
+
+    .hello-name {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.3;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      color: #fff;
+    }
+
+    .pill-status {
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.4;
+      border-radius: 999px;
+      padding: 3px 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0,0,0,0.22);
+      color: #fff;
+    }
+
+    .pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00ff85;
+      box-shadow: 0 0 8px rgba(0,255,133,0.8);
+    }
+
+    .pill-dot.off {
+      background: #ff4f4f;
+      box-shadow: 0 0 8px rgba(255,79,79,0.8);
+    }
+
+    .hello-detail {
+      font-size: 13px;
+      font-weight: 400;
+      margin-top: 12px;
+      line-height: 1.5;
+      color: rgba(255,255,255,0.9);
+    }
+
+    .stat-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.07);
+      padding: 16px 20px 18px;
+      margin-top: 20px;
+    }
+
+    .stat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+
+    .stat-title {
+      font-size: 14px;
+      color: #555a75;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stat-time {
+      font-size: 22px;
+      font-weight: 600;
+      color: #2b2e3a;
+      line-height: 1.2;
+    }
+
+    .timestamp-line {
+      font-size: 13px;
+      color: #7e8099;
+      font-weight: 400;
+      line-height: 1.4;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .punch-wrap {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .punch-btn {
+      appearance: none;
+      border: 0;
+      width: 100%;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.3;
+      padding: 14px 16px;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, #00c36a 0%, #12d47e 100%);
+      box-shadow: 0 10px 20px rgba(0,195,106,0.35);
+    }
+
+    .punch-btn.out {
+      background: linear-gradient(135deg, #e14b4b 0%, #ff6b6b 100%);
+      box-shadow: 0 10px 20px rgba(225,75,75,0.35);
+    }
+
+    .section-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.07);
+      padding: 16px 20px 10px;
+      margin-top: 20px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      color: #7e8099;
+      font-weight: 500;
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+    }
+
+    .link-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px 16px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .link-item a {
+      text-decoration: none;
+      color: #2b2e3a;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #f5f6fa;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.03);
+      transition: all 0.15s ease;
+    }
+
+    .link-item a:hover {
+      background: #eef0ff;
+      box-shadow: 0 8px 20px rgba(79,107,237,0.18);
+      color: #4f6bed;
+    }
+
+    .admin-hint {
+      font-size: 11px;
+      color: #7e8099;
+      font-weight: 400;
+      line-height: 1.4;
+      margin-top: 8px;
+    }
+
+    .foot-note {
+      margin-top: 28px;
+      font-size: 11px;
+      text-align: center;
+      color: #bbbccf;
+      line-height: 1.4;
+    }
+
+  </style>
 </head>
 <body>
-  <h2>{{ username }}님</h2>
+  <div class="wrap">
 
-  {% if open_rec %}
-    <p>오늘 출근: {{ open_rec.time_in }}</p>
-    <form method="post" action="{{ url_for('punch_out') }}">
-      <button type="submit">퇴근하기</button>
-    </form>
-  {% else %}
-    <form method="post" action="{{ url_for('punch_in') }}">
-      <button type="submit">출근하기</button>
-    </form>
-  {% endif %}
+    <!-- 상단 인사 / 상태 -->
+    <section class="hello-card">
+      <div class="hello-top">안녕하세요</div>
+      <div class="hello-name">
+        <div>{{ username }}님</div>
 
-  <p>이번달 누적: {{ month_hours }}시간 {{ month_mins }}분</p>
+        {% if open_rec %}
+          <div class="pill-status">
+            <div class="pill-dot"></div>
+            <div>근무중</div>
+          </div>
+        {% else %}
+          <div class="pill-status">
+            <div class="pill-dot off"></div>
+            <div>퇴근상태</div>
+          </div>
+        {% endif %}
+      </div>
 
-  {% if is_admin %}
-    <p><a href="{{ url_for('admin') }}">관리자 페이지</a></p>
-  {% endif %}
+      <div class="hello-detail">
+        {% if open_rec %}
+          지금 근무중이에요. 무사히 마무리하고 쉬는 시간 꼭 챙기기 ✨
+        {% else %}
+          오늘은 아직 출근 안 했거나 이미 퇴근했어요. 컨디션 잘 챙기기 🌙
+        {% endif %}
+      </div>
+    </section>
 
-  <p><a href="{{ url_for('logout') }}">로그아웃</a></p>
-  <p><a href="{{ url_for('change_password') }}">비밀번호 변경</a></p>
-  <p><a href="{{ url_for('profiles') }}">팀 상태판 보기 👀</a></p>
-  <p><a href="{{ url_for('weekly') }}">🏃 주간 현황판 보기</a></p>
+
+    <!-- 출근 / 퇴근 / 누적 시간 -->
+    <section class="stat-card">
+      <div class="stat-header">
+        <div class="stat-title">
+          <span>이번달 누적 근무</span>
+        </div>
+        <div class="stat-time">{{ month_hours }}시간 {{ month_mins }}분</div>
+      </div>
+
+      {% if open_rec %}
+        <div class="timestamp-line">🕒 오늘 출근: <strong>{{ open_rec.time_in }}</strong></div>
+      {% else %}
+        <div class="timestamp-line">🕒 현재 출근 중이 아닙니다</div>
+      {% endif %}
+
+      <div class="punch-wrap">
+        {% if open_rec %}
+          <form method="post" action="{{ url_for('punch_out') }}">
+            <button type="submit" class="punch-btn out">퇴근하기</button>
+          </form>
+        {% else %}
+          <form method="post" action="{{ url_for('punch_in') }}">
+            <button type="submit" class="punch-btn">출근하기</button>
+          </form>
+        {% endif %}
+      </div>
+    </section>
+
+
+    <!-- 링크 / 기능 섹션 -->
+    <section class="section-card">
+      <div class="section-title">내 메뉴</div>
+      <div class="link-list">
+        <div class="link-item">
+          <a href="{{ url_for('profiles') }}">👥<span>팀 상태판</span></a>
+        </div>
+        <div class="link-item">
+          <a href="{{ url_for('weekly') }}">📅<span>주간 현황판</span></a>
+        </div>
+        <div class="link-item">
+          <a href="{{ url_for('change_password') }}">🔐<span>비밀번호 변경</span></a>
+        </div>
+        <div class="link-item">
+          <a href="{{ url_for('logout') }}">🚪<span>로그아웃</span></a>
+        </div>
+      </div>
+
+      {% if is_admin %}
+        <div class="admin-hint">
+          🔧 관리자 전용 메뉴:
+          <a href="{{ url_for('admin') }}" style="color:#4f6bed; font-weight:500; text-decoration:none;">관리자 페이지</a>
+        </div>
+      {% endif %}
+    </section>
+
+    <div class="foot-note">Attendance System · local only</div>
+
+  </div>
 </body>
 </html>

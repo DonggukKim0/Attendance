@@ -790,13 +790,16 @@ def get_week_range(today=None):
 
 def collect_week_minutes_per_user(monday: date, sunday: date):
     """
-    월별 DB 구조를 유지하면서, 월을 걸쳐 있는 주간(예: 10월 말~11월 초)도 합산 가능하게 한다.
+    주간 근무 합계를 username 기준으로 안전하게 계산한다.
+    월이 바뀌면서 같은 사람이 DB마다 다른 id를 가질 수 있으므로,
+    여기서는 user_id 대신 username을 전역 키로 사용한다.
 
+    동작:
     1) 이번 주 날짜 범위 [monday, sunday]를 문자열(YYYY-MM-DD)로 만든다.
-    2) 이 범위에 걸쳐있는 year-month 들을 뽑는다. 예: {"2025_10", "2025_11"}.
-    3) 각각의 attendance_YYYY_MM.db 를 열어서
-       해당 범위(date BETWEEN monday_str AND sunday_str)의 work_minutes 합을 user_id별로 모은다.
-    4) users 테이블에서 username/status_msg/avatar_path도 한 번에 묶어서 반환하기 쉽게 dict로 구성한다.
+    2) 이 범위에 걸친 year_month 들 (예: {"2025_10", "2025_11"})을 수집한다.
+    3) 각 month DB에 대해 attendance JOIN users 로 username별 주간 근무합을 가져온다.
+    4) username을 키로 week_minutes를 누적하고, status_msg / avatar_path도 저장한다.
+    5) 최종적으로 week_data 리스트(한 사람당 한 항목)를 반환한다.
     """
     monday_str = monday.isoformat()
     sunday_str = sunday.isoformat()
@@ -808,11 +811,11 @@ def collect_week_minutes_per_user(monday: date, sunday: date):
         ym_keys.add(cur_day.strftime("%Y_%m"))
         cur_day += timedelta(days=1)
 
-    # 유저별 누적 분(dictionary)
-    per_user_minutes = {}  # { user_id: total_week_minutes }
+    # username별 누적 근무 시간(분)
+    per_user_minutes = {}  # { username: total_week_minutes }
 
-    # 유저 메타정보 (username, avatar 등)도 모을 dict
-    user_meta = {}  # { user_id: {"username":..., "avatar_path":..., "status_msg":...} }
+    # username별 메타정보 저장
+    user_meta = {}  # { username: {"status_msg":..., "avatar_path":...} }
 
     for ym in ym_keys:
         db_path = BASE_DIR / f"attendance_{ym}.db"
@@ -823,71 +826,74 @@ def collect_week_minutes_per_user(monday: date, sunday: date):
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
 
-        # 1) 이번 주 범위 내 근무 기록 합계 (user_id별)
+        # 1) 이번 주 범위 내 근무 기록 합계 (username 기준)
+        #    같은 username은 달마다 id가 달라도 여기서 묶인다.
         c.execute(
             """
-            SELECT user_id, COALESCE(SUM(work_minutes),0) AS total_min
-            FROM attendance
-            WHERE date >= ? AND date <= ?
-            GROUP BY user_id
+            SELECT u.username AS username,
+                   COALESCE(SUM(a.work_minutes),0) AS total_min
+            FROM attendance a
+            JOIN users u ON a.user_id = u.id
+            WHERE a.date >= ? AND a.date <= ?
+            GROUP BY u.username
             """,
             (monday_str, sunday_str)
         )
         rows = c.fetchall()
         for r in rows:
-            uid = r["user_id"]
+            uname = r["username"]
             tmin = r["total_min"] if r["total_min"] else 0
-            per_user_minutes[uid] = per_user_minutes.get(uid, 0) + tmin
+            per_user_minutes[uname] = per_user_minutes.get(uname, 0) + tmin
 
-        # 2) 해당 DB의 users 테이블에서 메타정보 확보 (없으면 채운다)
+        # 2) 메타정보 저장 (username 기준)
         c.execute(
             """
-            SELECT id, username, status_msg, avatar_path
+            SELECT username, status_msg, avatar_path
             FROM users
             """
         )
         urows = c.fetchall()
         for ur in urows:
-            uid = ur["id"]
-            if uid not in user_meta:
-                user_meta[uid] = {
-                    "username": ur["username"],
+            uname = ur["username"]
+            if uname not in user_meta:
+                user_meta[uname] = {
                     "status_msg": ur["status_msg"],
                     "avatar_path": ur["avatar_path"],
                 }
 
         conn.close()
 
-    # 이제 per_user_minutes 와 user_meta 를 합쳐서 리스트로 변환
+    # 3) per_user_minutes + user_meta 를 합쳐서 리스트 형태로 변환
     week_data = []
-    FULL_WEEK_MIN = 40 * 60  # 40시간 = 2400분
-    for uid, total_min in per_user_minutes.items():
+    FULL_WEEK_MIN = 40 * 60  # 40시간 = 2400분 기준 바(100%)
+
+    for uname, total_min in per_user_minutes.items():
         hours = total_min // 60
         mins = total_min % 60
+
         ratio = total_min / FULL_WEEK_MIN if FULL_WEEK_MIN > 0 else 0
         if ratio > 1:
             ratio = 1
         percent = int(ratio * 100)
 
-        meta = user_meta.get(uid, {
-            "username": f"user{uid}",
+        meta = user_meta.get(uname, {
             "status_msg": None,
             "avatar_path": None,
         })
 
         week_data.append({
-            "id": uid,
-            "username": meta["username"],
+            "id": uname,  # 주간 페이지에서는 username을 사실상 ID로 쓴다.
+            "username": uname,
             "status_msg": meta["status_msg"],
             "avatar_path": meta["avatar_path"],
             "week_minutes": total_min,
             "week_hours": hours,
             "week_mins": mins,
-            "track_percent": percent,  # 캐릭터 위치 (0~100)
+            "track_percent": percent,  # 0~100, 바 채움 비율
             "overwork": (total_min > FULL_WEEK_MIN),  # 40시간 초과 여부
         })
 
-    # username 기준으로 정렬해서 보기 예쁘게
+    # username 알파벳순 정렬
     week_data.sort(key=lambda x: x["username"].lower())
     return week_data
 

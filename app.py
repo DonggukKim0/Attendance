@@ -898,9 +898,11 @@ def weekly():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    # 관리자만 제한하고 싶으면 아래 주석 해제해서 if-block 살리면 됨.
-    # if not session.get("is_admin", False):
-    #     return redirect(url_for("dashboard"))
+    # 먼저 현재 달 DB를 열어서, 전날까지 퇴근 안 찍은 기록을 자동 마감해준다.
+    # 이렇게 해야 어제 퇴근 안 누른 시간이 주간 합계(/weekly)에 반영된다.
+    conn = get_db()
+    auto_close_old_open_shifts(conn)
+    conn.close()
 
     # 이번 주(월~일) 범위 계산
     monday, sunday = get_week_range()

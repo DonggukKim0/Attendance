@@ -35,6 +35,8 @@ def get_db():
 
     if first_time:
         c = conn.cursor()
+
+        # 1) 스키마 생성 (users / attendance 테이블)
         c.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
@@ -60,20 +62,30 @@ def get_db():
             )
             """
         )
-        # 기본 유저가 비어있다면 초기 유저 세팅 (dongguk/admin 등)
-        # 이 로직은 새 달로 넘어갔을 때도 동일하게 사용자 목록을 복사하기 위함
-        # 기존 달의 DB에서 유저 정보를 가져와 복사 시도
-        # 1) 가장 최근 DB를 찾는다
-        existing_dbs = sorted(BASE_DIR.glob("attendance_*.db"))
-        if existing_dbs:
-            # 마지막(가장 최신) DB에서 users를 읽어와서 현재 DB에 넣는다
-            last_db = existing_dbs[-1]
-            # 자기 자신일 수도 있으니 체크
-            if last_db != db_path:
-                src_conn = sqlite3.connect(last_db)
-                src_conn.row_factory = sqlite3.Row
-                src_c = src_conn.cursor()
-                src_c.execute("SELECT username, password, is_admin, status_msg, avatar_path FROM users")
+
+        # 2) 직전 달 DB에서 users 복사 시도
+        #    ex) 지금이 2025_11이면 prev_ym은 2025_10
+        now_dt = datetime.now()
+        cur_year = now_dt.year
+        cur_month = now_dt.month
+        if cur_month == 1:
+            prev_year = cur_year - 1
+            prev_month = 12
+        else:
+            prev_year = cur_year
+            prev_month = cur_month - 1
+        prev_ym = f"{prev_year}_{prev_month:02d}"
+        prev_db_path = BASE_DIR / f"attendance_{prev_ym}.db"
+
+        copied_any = False
+        if prev_db_path.exists():
+            src_conn = sqlite3.connect(prev_db_path)
+            src_conn.row_factory = sqlite3.Row
+            src_c = src_conn.cursor()
+            try:
+                src_c.execute(
+                    "SELECT username, password, is_admin, status_msg, avatar_path FROM users"
+                )
                 rows = src_c.fetchall()
                 for r in rows:
                     c.execute(
@@ -90,13 +102,17 @@ def get_db():
                             r["username"],
                             r["password"],
                             r["is_admin"],
-                            r.get("status_msg") if hasattr(r, "get") else r["status_msg"] if "status_msg" in r.keys() else None,
-                            r.get("avatar_path") if hasattr(r, "get") else r["avatar_path"] if "avatar_path" in r.keys() else None,
+                            r["status_msg"],
+                            r["avatar_path"],
                         ),
                     )
+                if rows:
+                    copied_any = True
+            finally:
                 src_conn.close()
-        else:
-            # 정말 첫 달이라 기존 DB가 전혀 없을 때만 초기 유저 직접 생성
+
+        # 3) 직전 달 DB에서 아무도 못 가져온 경우: 기본 계정 시드
+        if not copied_any:
             initial_users = [
                 ("dongguk", "1234", 1),
                 ("user1", "1111", 0),
@@ -105,11 +121,12 @@ def get_db():
                 ("user4", "4444", 0),
                 ("user5", "5555", 0),
             ]
-            for u, p, admin in initial_users:
+            for u, p, admin_flag in initial_users:
                 c.execute(
                     "INSERT OR IGNORE INTO users (username, password, is_admin, status_msg, avatar_path) VALUES (?, ?, ?, ?, ?)",
-                    (u, p, admin, None, None),
+                    (u, p, admin_flag, None, None),
                 )
+
         conn.commit()
 
     return conn

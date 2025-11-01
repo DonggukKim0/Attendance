@@ -898,16 +898,28 @@ def weekly():
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    # 먼저 현재 달 DB를 열어서, 전날까지 퇴근 안 찍은 기록을 자동 마감해준다.
-    # 이렇게 해야 어제 퇴근 안 누른 시간이 주간 합계(/weekly)에 반영된다.
-    conn = get_db()
-    auto_close_old_open_shifts(conn)
-    conn.close()
-
     # 이번 주(월~일) 범위 계산
     monday, sunday = get_week_range()
 
-    # 주간 데이터 모으기 (월跨월 자동 처리)
+    # 이 주에 걸쳐 있는 year_month 들을 전부 구한다.
+    ym_keys = set()
+    cur_day = monday
+    while cur_day <= sunday:
+        ym_keys.add(cur_day.strftime("%Y_%m"))
+        cur_day += timedelta(days=1)
+
+    # 각 month DB에 대해서, 전날까지 퇴근 안 찍은 기록 자동 마감(auto_close_old_open_shifts)
+    # 이렇게 해야 '어제가 지난달 DB에만 있는 근무'도 마감돼서 주간 합계에 work_minutes가 반영된다.
+    for ym in ym_keys:
+        db_path = BASE_DIR / f"attendance_{ym}.db"
+        if not db_path.exists():
+            continue
+        tmp_conn = sqlite3.connect(db_path)
+        tmp_conn.row_factory = sqlite3.Row
+        auto_close_old_open_shifts(tmp_conn)
+        tmp_conn.close()
+
+    # 자동 마감 이후에 주간 데이터 수집 (월跨월 지원)
     week_data = collect_week_minutes_per_user(monday, sunday)
 
     # 템플릿에 넘길 부가 정보

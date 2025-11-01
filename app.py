@@ -791,18 +791,53 @@ def get_month_range(target_date=None):
     return first_day, last_day, label
 
 
+
+# Helper: Count business days (Mon-Fri, no holidays)
+def count_business_days(start_date, end_date):
+    """
+    start_date부터 end_date까지 날짜를 하루씩 증가시키면서
+    월(0)~금(4) 요일만 근무일로 센다.
+    토(5), 일(6)은 제외한다.
+    공휴일은 고려하지 않는다.
+    """
+    d = start_date
+    cnt = 0
+    while d <= end_date:
+        if d.weekday() < 5:  # 월(0)~금(4)
+            cnt += 1
+        d += timedelta(days=1)
+    return cnt
+
 def collect_monthly_stats(month_start, month_end):
     """
     month_start ~ month_end 사이의 근무시간(분)을 username별로 합산해서
     월간 리포트용 데이터 구조를 만든다.
-    기준 목표치는 160시간 = 9600분.
+
+    이번 달 목표 근무시간은 (그 달의 평일(월~금) 개수 × 8시간) 으로 계산한다.
+    주말은 제외, 공휴일은 고려하지 않는다.
+
+    반환:
+      results(list), month_target_hours(int)
+      - results[i] = {
+            "username": ..., "avatar_path": ...,
+            "month_hours": h, "month_mins": m,
+            "track_percent": pct_clamped,
+            "overwork": bool,
+        }
+      - month_target_hours = 이번 달 목표 총 시간(시간 단위)
     """
     ym = month_start.strftime("%Y_%m")
     db_path = BASE_DIR / f"attendance_{ym}.db"
 
     results = []
     if not db_path.exists():
-        return results  # 이번 달 DB가 아직 없으면 빈 리스트
+        # 이번 달 DB 자체가 아직 없으면 빈 리스트와 목표 0을 반환
+        return results, 0
+
+    # 이번 달 근무해야 할 평일(월~금) 일수 계산
+    biz_days = count_business_days(month_start, month_end)
+    month_target_minutes = biz_days * 8 * 60   # 분 단위 목표치
+    month_target_hours = biz_days * 8          # 시간 단위 목표치 (템플릿에 표시)
 
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -828,16 +863,14 @@ def collect_monthly_stats(month_start, month_end):
     rows = c.fetchall()
     conn.close()
 
-    MONTH_TARGET_MIN = 160 * 60  # 160시간 = 9600분 기준
-
     for r in rows:
         total_minutes = r["total_minutes"] or 0
         h = total_minutes // 60
         m = total_minutes % 60
 
         # 퍼센트 계산 (최대 막대는 100%에서 멈춘다)
-        if MONTH_TARGET_MIN > 0:
-            pct = (total_minutes / MONTH_TARGET_MIN) * 100.0
+        if month_target_minutes > 0:
+            pct = (total_minutes / month_target_minutes) * 100.0
         else:
             pct = 0.0
 
@@ -853,7 +886,7 @@ def collect_monthly_stats(month_start, month_end):
             "overwork": overwork,
         })
 
-    return results
+    return results, month_target_hours
 
 # ---------------------------------------------------------
 # 주간 현황: 이번 주 (월~일) 동안 각 유저가 얼마나 일했는지 합산해서 보여준다.
@@ -1033,8 +1066,8 @@ def monthly():
     # 이번 달 범위 계산
     month_start, month_end, month_label = get_month_range()
 
-    # 월간 데이터 수집
-    month_data = collect_monthly_stats(month_start, month_end)
+    # 월간 데이터 수집 (동적 근무일수 기반 목표 포함)
+    month_data, month_target_hours = collect_monthly_stats(month_start, month_end)
 
     # 팀 전체 누적 근무시간 (이 달)
     total_team_minutes = sum(
@@ -1053,6 +1086,7 @@ def monthly():
         team_total_hours=team_h,
         team_total_mins=team_m,
         top_user=top_user,
+        month_target_hours=month_target_hours,
     )
 
 @app.route("/admin_force_checkout/<int:user_id>", methods=["POST"])

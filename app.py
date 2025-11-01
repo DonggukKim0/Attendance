@@ -3,6 +3,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import sqlite3
 from datetime import datetime, date
 from datetime import timedelta
+import calendar
 from pathlib import Path
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -772,6 +773,89 @@ def logout():
 
 
 # ---------------------------------------------------------
+# 월간 통계 유틸
+
+def get_month_range(target_date=None):
+    """
+    이번 달(또는 target_date가 속한 달)의 시작일과 마지막일, 라벨 문자열을 반환한다.
+    예: (2025-11-01(date), 2025-11-30(date), "2025-11-01 ~ 2025-11-30")
+    """
+    if target_date is None:
+        target_date = datetime.now().date()
+
+    first_day = target_date.replace(day=1)
+    last_day_num = calendar.monthrange(first_day.year, first_day.month)[1]
+    last_day = target_date.replace(day=last_day_num)
+
+    label = f"{first_day.strftime('%Y-%m-%d')} ~ {last_day.strftime('%Y-%m-%d')}"
+    return first_day, last_day, label
+
+
+def collect_monthly_stats(month_start, month_end):
+    """
+    month_start ~ month_end 사이의 근무시간(분)을 username별로 합산해서
+    월간 리포트용 데이터 구조를 만든다.
+    기준 목표치는 160시간 = 9600분.
+    """
+    ym = month_start.strftime("%Y_%m")
+    db_path = BASE_DIR / f"attendance_{ym}.db"
+
+    results = []
+    if not db_path.exists():
+        return results  # 이번 달 DB가 아직 없으면 빈 리스트
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+
+    # 지난 날들 중 퇴근 미처리된 항목 자동 마감 (23:59:59 처리)
+    auto_close_old_open_shifts(conn)
+
+    # 사람별 월간 총 근무시간(분) 합계
+    c.execute(
+        """
+        SELECT u.username,
+               u.avatar_path,
+               SUM(COALESCE(a.work_minutes, 0)) AS total_minutes
+        FROM attendance a
+        JOIN users u ON a.user_id = u.id
+        WHERE a.date BETWEEN ? AND ?
+        GROUP BY u.username, u.avatar_path
+        ORDER BY total_minutes DESC
+        """,
+        (month_start.strftime("%Y-%m-%d"), month_end.strftime("%Y-%m-%d"))
+    )
+    rows = c.fetchall()
+    conn.close()
+
+    MONTH_TARGET_MIN = 160 * 60  # 160시간 = 9600분 기준
+
+    for r in rows:
+        total_minutes = r["total_minutes"] or 0
+        h = total_minutes // 60
+        m = total_minutes % 60
+
+        # 퍼센트 계산 (최대 막대는 100%에서 멈춘다)
+        if MONTH_TARGET_MIN > 0:
+            pct = (total_minutes / MONTH_TARGET_MIN) * 100.0
+        else:
+            pct = 0.0
+
+        capped_pct = pct if pct < 100 else 100
+        overwork = (pct > 100)
+
+        results.append({
+            "username": r["username"],
+            "avatar_path": r["avatar_path"],
+            "month_hours": h,
+            "month_mins": m,
+            "track_percent": round(capped_pct, 2),
+            "overwork": overwork,
+        })
+
+    return results
+
+# ---------------------------------------------------------
 # 주간 현황: 이번 주 (월~일) 동안 각 유저가 얼마나 일했는지 합산해서 보여준다.
 # 레이스 트랙 스타일을 위해 각 유저별로 week_minutes / 2400 비율을 퍼센트로 계산하여
 # 캐릭터 위치로 쓸 수 있도록 넘겨준다.
@@ -935,6 +1019,40 @@ def weekly():
         "weekly.html",
         week_data=week_data,
         week_range_label=week_range_label,
+    )
+
+
+# ---------------------------------------------------------
+# 월간 현황: 이번 달 각 유저별 근무시간 합계
+@app.route("/monthly")
+def monthly():
+    # 로그인 안 되어 있으면 로그인 페이지로 넘긴다
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    # 이번 달 범위 계산
+    month_start, month_end, month_label = get_month_range()
+
+    # 월간 데이터 수집
+    month_data = collect_monthly_stats(month_start, month_end)
+
+    # 팀 전체 누적 근무시간 (이 달)
+    total_team_minutes = sum(
+        u["month_hours"] * 60 + u["month_mins"] for u in month_data
+    )
+    team_h = total_team_minutes // 60
+    team_m = total_team_minutes % 60
+
+    # 이번 달 가장 오래 일한 사용자 (month_data는 total_minutes DESC 순)
+    top_user = month_data[0] if len(month_data) > 0 else None
+
+    return render_template(
+        "monthly.html",
+        month_range_label=month_label,
+        month_data=month_data,
+        team_total_hours=team_h,
+        team_total_mins=team_m,
+        top_user=top_user,
     )
 
 @app.route("/admin_force_checkout/<int:user_id>", methods=["POST"])

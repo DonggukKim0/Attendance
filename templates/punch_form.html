@@ -41,15 +41,16 @@
     }
     .numbers-row {
       display: flex;
-      gap: 12px;
-      margin-top: 20px;
-      margin-bottom: 16px;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 24px;
+      margin-bottom: 20px;
     }
     .num-box {
-      flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      align-items: center;
+      gap: 8px;
       font-size: 13px;
       color: #555a75;
     }
@@ -59,17 +60,25 @@
       color: #7e8099;
     }
     .num-box input {
-      width: 100%;
-      border-radius: 10px;
-      border: 1px solid rgba(0,0,0,0.12);
-      background: #f5f6fa;
-      font-size: 16px;
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
+      border: 2px solid rgba(0,0,0,0.12);
+      background: #fff;
+      font-size: 28px;
       font-weight: 600;
       text-align: center;
-      line-height: 1.4;
+      line-height: 1;
       color: #2b2e3a;
-      padding: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      padding: 0;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.06);
+      outline: none;
+      transition: all 0.15s ease;
+      letter-spacing: -0.03em;
+    }
+    .num-box input:focus {
+      border-color: #4f6bed;
+      box-shadow: 0 16px 32px rgba(79,107,237,0.25);
     }
     .hint {
       font-size: 12px;
@@ -105,6 +114,15 @@
       font-weight: 500;
       text-decoration: none;
     }
+    .dup-hint {
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 500;
+      color: #e14b4b;
+      margin-top: 6px;
+      text-align: center;
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -127,19 +145,20 @@
         <div class="numbers-row">
           <div class="num-box">
             <label for="n1">첫번째</label>
-            <input id="n1" name="n1" type="number" min="1" max="5" required>
+            <input id="n1" name="n1" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
           </div>
           <div class="num-box">
             <label for="n2">두번째</label>
-            <input id="n2" name="n2" type="number" min="1" max="5" required>
+            <input id="n2" name="n2" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
           </div>
           <div class="num-box">
             <label for="n3">세번째</label>
-            <input id="n3" name="n3" type="number" min="1" max="5" required>
+            <input id="n3" name="n3" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
           </div>
         </div>
 
-        <div class="hint">중복 없이 골라야 해요 (예: 1-3-5 가능 / 2-2-3 불가)</div>
+        <div class="hint">1~5에서 서로 다른 숫자 3개를 선택하세요</div>
+        <div id="dupWarn" class="dup-hint">같은 숫자는 중복으로 넣을 수 없어요 👀</div>
 
         <div class="btn-row">
           <button type="submit" class="submit-btn">출근하기 & 참여하기</button>
@@ -151,5 +170,55 @@
       </div>
     </section>
   </div>
+  <script>
+    const boxes = [
+      document.getElementById('n1'),
+      document.getElementById('n2'),
+      document.getElementById('n3'),
+    ];
+    const dupWarn = document.getElementById('dupWarn');
+
+    function validateBoxes() {
+      const vals = boxes.map(b => b.value.trim());
+
+      // 숫자 범위 체크 (1~5 아니면 비우기)
+      boxes.forEach((b, idx) => {
+        const v = vals[idx];
+        if (!['1','2','3','4','5'].includes(v)) {
+          b.value = '';
+          vals[idx] = '';
+        }
+      });
+
+      // 중복 여부 체크
+      const filled = vals.filter(v => v !== '');
+      const unique = new Set(filled);
+      if (filled.length !== unique.size) {
+        dupWarn.style.display = 'block';
+      } else {
+        dupWarn.style.display = 'none';
+      }
+    }
+
+    boxes.forEach((box, i) => {
+      box.addEventListener('input', () => {
+        // 만약 붙여넣기로 2글자 이상 들어왔다면 첫 글자만 남긴다
+        if (box.value.length > 1) {
+          box.value = box.value.slice(0,1);
+        }
+
+        validateBoxes();
+
+        // 값이 정상적으로 들어갔으면 다음 칸으로 자동 이동
+        if (box.value && i < boxes.length - 1) {
+          boxes[i+1].focus();
+        }
+      });
+
+      box.addEventListener('focus', () => {
+        box.select();
+      });
+    });
+  </script>
 </body>
 </html>

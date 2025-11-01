@@ -362,7 +362,7 @@
 
     <div class="summary-left">
       <div class="headline">이번 달 근무 리포트 📈</div>
-      <div class="subline">개인별 월간 누적 근무시간 (목표 160시간 기준)</div>
+      <div class="subline">개인별 월간 누적 근무시간 (이번 달 기준 {{ month_target_hours }}시간 = 100%)</div>
       <div class="range-box">{{ month_range_label }}</div>
     </div>
 
@@ -398,6 +398,7 @@
       <div class="summary-links">
         <a href="{{ url_for('dashboard') }}">🏠 내 대시보드</a>
         <a href="{{ url_for('weekly') }}">📅 주간 현황판</a>
+        <a href="{{ url_for('profiles') }}">👥 팀 상태판</a>
       </div>
     </div>
 
@@ -407,7 +408,7 @@
   <section class="list-card">
     <div class="list-head">
       <div class="list-title">월간 근무량 랭킹</div>
-      <div class="list-hint">160시간 = 100%</div>
+      <div class="list-hint">{{ month_target_hours }}시간 = 100%</div>
     </div>
 
     {% for u in month_data %}
@@ -440,7 +441,7 @@
         <!-- 오른쪽: 수치 -->
         <div class="runner-stats">
           <div class="runner-hours">
-            {{ u.month_hours }}시간 {{ u.month_mins }}분 / 160시간
+            {{ u.month_hours }}시간 {{ u.month_mins }}분 / {{ month_target_hours }}시간
             {% if u.overwork %}
               <span class="overwork-flag">🔥 초과근무</span>
             {% endif %}

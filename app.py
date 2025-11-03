@@ -546,49 +546,63 @@ def punch_in():
     if not user_id:
         return redirect(url_for("login"))
 
-    today = date.today().isoformat()
-    now = datetime.now().strftime("%H:%M:%S")
+    now_dt = datetime.now()
+    today = now_dt.date().isoformat()
+    now = now_dt.strftime("%H:%M:%S")
+    allow_lucky = now_dt.time() < time(17, 0)  # 5시 이전에만 lucky 코드 유효
 
-    # 사용자가 제출한 lucky numbers (세 칸)
-    n1 = request.form.get("n1", "").strip()
-    n2 = request.form.get("n2", "").strip()
-    n3 = request.form.get("n3", "").strip()
+    lucky_code = None
 
-    lucky_code = validate_lucky_numbers(n1, n2, n3)
-    if lucky_code is None:
-        flash("형식이 올바르지 않습니다. 1~5에서 서로 다른 숫자 3개를 입력하세요.")
-        return redirect(url_for("punch_form"))
+    if allow_lucky:
+        # 사용자가 제출한 lucky numbers (세 칸)
+        n1 = request.form.get("n1", "").strip()
+        n2 = request.form.get("n2", "").strip()
+        n3 = request.form.get("n3", "").strip()
+
+        lucky_code = validate_lucky_numbers(n1, n2, n3)
+        if lucky_code is None:
+            flash("형식이 올바르지 않습니다. 1~5에서 서로 다른 숫자 3개를 입력하세요.")
+            return redirect(url_for("punch_form"))
 
     # 근태 DB에 출근 기록
     conn = get_db()
     c = conn.cursor()
-    c.execute("""
+    c.execute(
+        """
         SELECT id FROM attendance
         WHERE user_id=? AND date=? AND time_out IS NULL
-    """, (user_id, today))
+        """,
+        (user_id, today)
+    )
     exists = c.fetchone()
     if not exists:
-        c.execute("""
+        c.execute(
+            """
             INSERT INTO attendance (user_id, date, time_in)
             VALUES (?, ?, ?)
-        """, (user_id, today, now))
+            """,
+            (user_id, today, now)
+        )
         conn.commit()
     conn.close()
 
-    # lucky.db 에 오늘 pick 저장
-    lconn = get_lucky_db()
-    lc = lconn.cursor()
-    lc.execute(
-        """
-        INSERT OR IGNORE INTO picks(date, user_id, code, is_winner)
-        VALUES (?, ?, ?, 0)
-        """,
-        (today, user_id, lucky_code)
-    )
-    lconn.commit()
-    lconn.close()
+    # lucky.db 에 오늘 pick 저장 (5시 이전에만)
+    if lucky_code is not None:
+        lconn = get_lucky_db()
+        lc = lconn.cursor()
+        lc.execute(
+            """
+            INSERT OR IGNORE INTO picks(date, user_id, code, is_winner)
+            VALUES (?, ?, ?, 0)
+            """,
+            (today, user_id, lucky_code)
+        )
+        lconn.commit()
+        lconn.close()
+        flash("출근 완료! 오늘의 럭키 이벤트에 참여되었습니다.")
+    else:
+        flash("출근 완료! (오늘의 럭키 이벤트 참여 시간은 마감되었습니다.)")
 
-    flash("출근 완료! 오늘의 럭키 이벤트에 참여되었습니다.")
     return redirect(url_for("dashboard"))
 
 @app.route("/punch_out", methods=["POST"])

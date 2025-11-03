@@ -68,6 +68,14 @@
   .link-item a { text-decoration: none; color: #2b2e3a; font-weight: 500; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: #f5f6fa; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.03); transition: all 0.15s ease; }
   .link-item a:hover { background: #eef0ff; box-shadow: 0 8px 20px rgba(79,107,237,0.18); color: #4f6bed; }
   .foot-note { margin-top: 28px; font-size: 11px; text-align: center; color: #bbbccf; }
+  .cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .cal-title { font-size:16px; font-weight:700; color:#2b2e3a; }
+  .cal-nav-btn { border:none; background:#f3f4f6; color:#111827; padding:6px 10px; border-radius:8px; cursor:pointer; }
+  .cal-nav-btn:hover { background:#e5e7eb; }
+  .cal-cell.wknd:not(.worked) { background:#eef2f7; }
+  .cal-cell.today { position:relative; }
+  .cal-cell.today span { position:relative; z-index:1; }
+  .cal-cell.today::after { content:""; position:absolute; inset:4px; border:2px solid #4f46e5; border-radius:10px; }
   </style>
 </head>
 <body>
@@ -167,5 +175,114 @@
     {% endif %}
   </section>
 
+  <aside class="side">
+    <section class="calendar-card">
+      <div class="cal-nav">
+        <button id="cal-prev" class="cal-nav-btn" aria-label="이전 달">◀︎</button>
+        <div id="cal-title" class="cal-title">YYYY.MM</div>
+        <button id="cal-next" class="cal-nav-btn" aria-label="다음 달">▶︎</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+      </div>
+      <div id="cal-grid" class="cal-grid"></div>
+      <div class="cal-legend">
+        <span class="grad start" title="0h"></span><span>0h</span>
+        <span class="grad end" title="8h+"></span><span>8h+</span>
+      </div>
+    </section>
+  </aside>
+
   <div class="foot-note">Attendance System · local only</div>
 </div>
+<script>
+(function(){
+  const grid = document.getElementById('cal-grid');
+  const title = document.getElementById('cal-title');
+  const btnPrev = document.getElementById('cal-prev');
+  const btnNext = document.getElementById('cal-next');
+
+  let today = new Date();
+  let curYear = today.getFullYear();
+  let curMonth = today.getMonth(); // 0-based
+
+  function fmtTitle(y, m0){ return `${y}.${String(m0+1).padStart(2,'0')}`; }
+
+  function renderCalendar(){
+    if (!grid) return;
+    grid.innerHTML = '';
+    if (title) title.textContent = fmtTitle(curYear, curMonth);
+
+    const first = new Date(curYear, curMonth, 1);
+    const last = new Date(curYear, curMonth + 1, 0);
+    const startWeekday = first.getDay();
+    const daysInMonth = last.getDate();
+
+    // leading blanks
+    for (let i=0; i<startWeekday; i++){
+      const blank = document.createElement('div');
+      blank.className = 'cal-cell blank';
+      grid.appendChild(blank);
+    }
+
+    // day cells
+    const cells = [];
+    for (let d=1; d<=daysInMonth; d++){
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell';
+      const span = document.createElement('span');
+      span.textContent = d;
+      cell.appendChild(span);
+
+      // weekend shading (Sun=0, Sat=6)
+      const weekday = (startWeekday + (d-1)) % 7;
+      if (weekday === 0 || weekday === 6) cell.classList.add('wknd');
+
+      // today indicator
+      if (curYear === today.getFullYear() && curMonth === today.getMonth() && d === today.getDate()){
+        cell.classList.add('today');
+      }
+
+      grid.appendChild(cell);
+      cells.push(cell);
+    }
+
+    // fetch data if API exists
+    const url = `{{ url_for('api_monthly_work') if 'api_monthly_work' in globals() else '/api_monthly_work' }}?year=${curYear}&month=${curMonth+1}`;
+    fetch(url)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data || !data.minutes) return;
+        const minutes = data.minutes;
+        const maxRef = 480; // 8h reference
+        Object.keys(minutes).forEach(key => {
+          const day = parseInt(key, 10);
+          const mins = minutes[key] || 0;
+          if (!Number.isFinite(day) || day < 1 || day > cells.length) return;
+          const ratio = Math.max(0, Math.min(1, mins / maxRef));
+          const hue = 140; // green
+          const light = 95 - Math.round(55 * ratio); // 95% -> 40%
+          const cell = cells[day-1];
+          cell.style.background = `hsl(${hue} 70% ${light}%)`;
+          cell.classList.add('worked');
+          cell.title = `${(mins/60).toFixed(1)}h`;
+        });
+      })
+      .catch(()=>{});
+  }
+
+  // navigation
+  if (btnPrev) btnPrev.addEventListener('click', () => {
+    curMonth -= 1;
+    if (curMonth < 0){ curMonth = 11; curYear -= 1; }
+    renderCalendar();
+  });
+  if (btnNext) btnNext.addEventListener('click', () => {
+    curMonth += 1;
+    if (curMonth > 11){ curMonth = 0; curYear += 1; }
+    renderCalendar();
+  });
+
+  renderCalendar();
+})();
+</script>

@@ -1,5 +1,5 @@
 # app.py
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import sqlite3
 from datetime import datetime, date, time
 from datetime import timedelta
@@ -1360,6 +1360,84 @@ def monthly():
         top_user=top_user,
         month_target_hours=month_target_hours,
     )
+
+
+# ---------------------- API: Monthly work per day (JSON) ----------------------
+@app.route('/api_monthly_work')
+def api_monthly_work():
+    """Return JSON of {day: minutes} for the logged-in user's selected month.
+    Query params: year=YYYY, month=MM (1-12)
+    Includes confirmed (work_minutes) + today's in-progress time if applicable.
+    """
+    if 'user_id' not in session:
+        return jsonify({'error': 'unauthorized'}), 401
+
+    try:
+        y = int(request.args.get('year', date.today().year))
+        m = int(request.args.get('month', date.today().month))
+    except Exception:
+        y, m = date.today().year, date.today().month
+
+    # Guard values
+    if m < 1 or m > 12:
+        return jsonify({'error': 'bad_request'}), 400
+
+    db_name = f"attendance_{y:04d}_{m:02d}.db"
+    db_path = BASE_DIR / db_name
+    minutes = {}
+
+    if db_path.exists():
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+
+        # 1) Sum confirmed work_minutes per date for this user
+        c.execute(
+            """
+            SELECT date, SUM(work_minutes) AS mins
+            FROM attendance
+            WHERE user_id=?
+            GROUP BY date
+            """,
+            (session['user_id'],)
+        )
+        for r in c.fetchall():
+            dstr = r['date']
+            if not dstr:
+                continue
+            try:
+                day = int(dstr.split('-')[2])
+            except Exception:
+                continue
+            minutes[day] = int(r['mins'] or 0)
+
+        # 2) If today belongs to this month and user is currently clocked in, add live elapsed
+        today = date.today()
+        if today.year == y and today.month == m:
+            c.execute(
+                """
+                SELECT time_in
+                FROM attendance
+                WHERE user_id=? AND date=? AND time_out IS NULL
+                ORDER BY id DESC LIMIT 1
+                """,
+                (session['user_id'], today.isoformat())
+            )
+            rec = c.fetchone()
+            if rec and rec['time_in']:
+                try:
+                    t_in = datetime.strptime(rec['time_in'], '%H:%M:%S')
+                    now = datetime.now()
+                    elapsed = int((now - now.replace(hour=t_in.hour, minute=t_in.minute, second=t_in.second, microsecond=0)).total_seconds() // 60)
+                    if elapsed < 0:
+                        elapsed = 0
+                    minutes[today.day] = minutes.get(today.day, 0) + elapsed
+                except Exception:
+                    pass
+
+        conn.close()
+
+    return jsonify({'year': y, 'month': m, 'minutes': minutes})
 
 if __name__ == "__main__":
     # 0.0.0.0 으로 열어야 다른 PC에서 접속 가능

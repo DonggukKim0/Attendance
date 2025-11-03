@@ -1363,4 +1363,4 @@ def monthly():
 
 if __name__ == "__main__":
     # 0.0.0.0 으로 열어야 다른 PC에서 접속 가능
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=False)

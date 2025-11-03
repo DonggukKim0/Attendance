@@ -49,7 +49,10 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', system-ui, sans-serif;
     color: #2b2e3a;
   }
-  .wrap { max-width: 480px; margin: 32px auto; padding: 0 16px 40px; }
+  .wrap { max-width: 1100px; margin: 32px auto; padding: 0 16px 40px; }
+  .layout { display: grid; grid-template-columns: 1fr 340px; gap: 22px; align-items: start; }
+  .main { min-width: 0; }
+  .side { min-width: 0; }
   .hello-card { background: linear-gradient(135deg, #4f6bed 0%, #7c93ff 100%); border-radius: 16px; box-shadow: 0 16px 32px rgba(40,50,130,0.28); color: #fff; padding: 20px 24px 24px; display: flex; flex-direction: column; position: relative; overflow: hidden; }
   .hello-top { font-size: 15px; font-weight: 500; opacity: 0.9; margin-bottom: 4px; }
   .hello-name { font-size: 20px; font-weight: 600; line-height: 1.3; display: flex; align-items: baseline; gap: 8px; color: #fff; }
@@ -76,6 +79,23 @@
   .cal-cell.today { position:relative; }
   .cal-cell.today span { position:relative; z-index:1; }
   .cal-cell.today::after { content:""; position:absolute; inset:4px; border:2px solid #4f46e5; border-radius:10px; }
+
+  .calendar-card { background:#fff; border-radius:14px; box-shadow:0 12px 28px rgba(0,0,0,0.07); padding:16px 16px 18px; }
+  .cal-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin:6px 0 8px; font-size:12px; color:#6b7280; text-align:center; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .cal-cell { background:#f1f5f9; border:1px solid #e5e7eb; aspect-ratio:1/1; border-radius:10px; display:flex; align-items:center; justify-content:center; position:relative; }
+  .cal-cell.blank { background:transparent; border:none; }
+  .cal-cell.worked { color:#0b1b13; }
+  .cal-cell > span { font-variant-numeric: tabular-nums; font-weight:600; font-size:12px; }
+  .cal-legend { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:12px; color:#6b7280; }
+  .cal-legend .grad { display:inline-block; width:32px; height:10px; border-radius:999px; border:1px solid #e5e7eb; }
+  .cal-legend .start { background:hsl(140 70% 95%); }
+  .cal-legend .end { background:hsl(140 70% 40%); }
+
+  @media (max-width: 920px){
+    .layout { grid-template-columns: 1fr; }
+    .side { order: -1; }
+  }
   </style>
 </head>
 <body>
@@ -94,105 +114,107 @@
   </nav>
 
 <div class="wrap">
-  <section class="hello-card">
-    <div class="hello-top">안녕하세요</div>
-    <div class="hello-name">
-      <div>{{ username }}님</div>
-      {% if open_rec %}
-        <div class="pill-status"><div class="pill-dot"></div><div>근무중</div></div>
-      {% else %}
-        <div class="pill-status"><div class="pill-dot off"></div><div>퇴근상태</div></div>
-      {% endif %}
-    </div>
-    <div class="hello-detail">
-      {% if open_rec %}
-        지금 근무중이에요. 무사히 마무리하고 쉬는 시간 꼭 챙기기 ✨
-      {% else %}
-        오늘은 아직 출근 안 했거나 이미 퇴근했어요. 컨디션 잘 챙기기 🌙
-      {% endif %}
-    </div>
-  </section>
+  <div class="layout">
+    <div class="main">
+      <section class="hello-card">
+        <div class="hello-top">안녕하세요</div>
+        <div class="hello-name">
+          <div>{{ username }}님</div>
+          {% if open_rec %}
+            <div class="pill-status"><div class="pill-dot"></div><div>근무중</div></div>
+          {% else %}
+            <div class="pill-status"><div class="pill-dot off"></div><div>퇴근상태</div></div>
+          {% endif %}
+        </div>
+        <div class="hello-detail">
+          {% if open_rec %}
+            지금 근무중이에요. 무사히 마무리하고 쉬는 시간 꼭 챙기기 ✨
+          {% else %}
+            오늘은 아직 출근 안 했거나 이미 퇴근했어요. 컨디션 잘 챙기기 🌙
+          {% endif %}
+        </div>
+      </section>
 
-  <section class="stat-card">
-    <div class="stat-header">
-      <div class="stat-title">이번달 누적 근무</div>
-      <div class="stat-time">{{ month_hours }}시간 {{ month_mins }}분</div>
-    </div>
+      <section class="stat-card">
+        <div class="stat-header">
+          <div class="stat-title">이번달 누적 근무</div>
+          <div class="stat-time">{{ month_hours }}시간 {{ month_mins }}분</div>
+        </div>
 
-    {% if open_rec %}
-      <div>🕒 오늘 출근: <strong>{{ open_rec.time_in }}</strong></div>
-    {% else %}
-      <div>🕒 현재 출근 중이 아닙니다</div>
-    {% endif %}
-
-    <div class="punch-wrap">
-      {% if open_rec %}
-        <form method="post" action="{{ url_for('punch_out') }}">
-          <button type="submit" class="punch-btn out">퇴근하기</button>
-        </form>
-      {% else %}
-        <form method="get" action="{{ url_for('punch_form') }}">
-          <button type="submit" class="punch-btn">출근하기</button>
-        </form>
-      {% endif %}
-    </div>
-  </section>
-
-  <section class="lucky-card">
-    <div class="lucky-head">
-      <div class="lucky-title">🎰 오늘의 럭키 이벤트</div>
-      <div style="font-size:12px; color:#7e8099; font-weight:400;">1~5 중 서로 다른 숫자 3개</div>
-    </div>
-    <div>내 선택: {% if my_lucky_code %}<strong>{{ my_lucky_code }}</strong>{% else %}<span style="color:#7e8099;">(참여 기록 없음)</span>{% endif %}</div>
-    {% if winning_code_today %}
-      <div>오늘의 당첨 번호: <strong style="color:#4f6bed;">{{ winning_code_today }}</strong></div>
-      {% if my_lucky_code %}
-        {% if my_lucky_win %}
-          <div style="color:#00a86b;">🎉 축하합니다! 오늘의 행운 근무자!</div>
+        {% if open_rec %}
+          <div>🕒 오늘 출근: <strong>{{ open_rec.time_in }}</strong></div>
         {% else %}
-          <div style="color:#7e8099;">오늘은 아쉽지만 내일 다시 도전 💪</div>
+          <div>🕒 현재 출근 중이 아닙니다</div>
         {% endif %}
-      {% else %}
-        <div style="color:#7e8099;">오늘은 참여하지 않았어요.</div>
-      {% endif %}
-    {% else %}
-      <div style="color:#7e8099;">당첨 번호는 17:00 이후 공개됩니다 🔒</div>
-    {% endif %}
-  </section>
 
-  <section class="section-card">
-    <div class="section-title">내 메뉴</div>
-    <div class="link-list">
-      <div class="link-item"><a href="{{ url_for('profiles') }}">👥<span>팀 상태판</span></a></div>
-      <div class="link-item"><a href="{{ url_for('weekly') }}">📅<span>주간 현황판</span></a></div>
-      <div class="link-item"><a href="{{ url_for('monthly') }}">📊<span>월간 현황판</span></a></div>
-      <div class="link-item"><a href="{{ url_for('board') }}">💬<span>팀 게시판</span></a></div>
-      <div class="link-item"><a href="{{ url_for('change_password') }}">🔐<span>비밀번호 변경</span></a></div>
-      <div class="link-item"><a href="{{ url_for('logout') }}">🚪<span>로그아웃</span></a></div>
-    </div>
-    {% if is_admin %}
-      <div style="font-size:11px; color:#7e8099; margin-top:8px;">🔧 관리자 전용: <a href="{{ url_for('admin') }}" style="color:#4f6bed;">관리자 페이지</a></div>
-    {% endif %}
-  </section>
+        <div class="punch-wrap">
+          {% if open_rec %}
+            <form method="post" action="{{ url_for('punch_out') }}">
+              <button type="submit" class="punch-btn out">퇴근하기</button>
+            </form>
+          {% else %}
+            <form method="get" action="{{ url_for('punch_form') }}">
+              <button type="submit" class="punch-btn">출근하기</button>
+            </form>
+          {% endif %}
+        </div>
+      </section>
 
-  <aside class="side">
-    <section class="calendar-card">
-      <div class="cal-nav">
-        <button id="cal-prev" class="cal-nav-btn" aria-label="이전 달">◀︎</button>
-        <div id="cal-title" class="cal-title">YYYY.MM</div>
-        <button id="cal-next" class="cal-nav-btn" aria-label="다음 달">▶︎</button>
-      </div>
-      <div class="cal-weekdays">
-        <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
-      </div>
-      <div id="cal-grid" class="cal-grid"></div>
-      <div class="cal-legend">
-        <span class="grad start" title="0h"></span><span>0h</span>
-        <span class="grad end" title="8h+"></span><span>8h+</span>
-      </div>
-    </section>
-  </aside>
+      <section class="lucky-card">
+        <div class="lucky-head">
+          <div class="lucky-title">🎰 오늘의 럭키 이벤트</div>
+          <div style="font-size:12px; color:#7e8099; font-weight:400;">1~5 중 서로 다른 숫자 3개</div>
+        </div>
+        <div>내 선택: {% if my_lucky_code %}<strong>{{ my_lucky_code }}</strong>{% else %}<span style="color:#7e8099;">(참여 기록 없음)</span>{% endif %}</div>
+        {% if winning_code_today %}
+          <div>오늘의 당첨 번호: <strong style="color:#4f6bed;">{{ winning_code_today }}</strong></div>
+          {% if my_lucky_code %}
+            {% if my_lucky_win %}
+              <div style="color:#00a86b;">🎉 축하합니다! 오늘의 행운 근무자!</div>
+            {% else %}
+              <div style="color:#7e8099;">오늘은 아쉽지만 내일 다시 도전 💪</div>
+            {% endif %}
+          {% else %}
+            <div style="color:#7e8099;">오늘은 참여하지 않았어요.</div>
+          {% endif %}
+        {% else %}
+          <div style="color:#7e8099;">당첨 번호는 17:00 이후 공개됩니다 🔒</div>
+        {% endif %}
+      </section>
 
+      <section class="section-card">
+        <div class="section-title">내 메뉴</div>
+        <div class="link-list">
+          <div class="link-item"><a href="{{ url_for('profiles') }}">👥<span>팀 상태판</span></a></div>
+          <div class="link-item"><a href="{{ url_for('weekly') }}">📅<span>주간 현황판</span></a></div>
+          <div class="link-item"><a href="{{ url_for('monthly') }}">📊<span>월간 현황판</span></a></div>
+          <div class="link-item"><a href="{{ url_for('board') }}">💬<span>팀 게시판</span></a></div>
+          <div class="link-item"><a href="{{ url_for('change_password') }}">🔐<span>비밀번호 변경</span></a></div>
+          <div class="link-item"><a href="{{ url_for('logout') }}">🚪<span>로그아웃</span></a></div>
+        </div>
+        {% if is_admin %}
+          <div style="font-size:11px; color:#7e8099; margin-top:8px;">🔧 관리자 전용: <a href="{{ url_for('admin') }}" style="color:#4f6bed;">관리자 페이지</a></div>
+        {% endif %}
+      </section>
+    </div> <!-- /.main -->
+    <aside class="side">
+      <section class="calendar-card">
+        <div class="cal-nav">
+          <button id="cal-prev" class="cal-nav-btn" aria-label="이전 달">◀︎</button>
+          <div id="cal-title" class="cal-title">YYYY.MM</div>
+          <button id="cal-next" class="cal-nav-btn" aria-label="다음 달">▶︎</button>
+        </div>
+        <div class="cal-weekdays">
+          <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
+        </div>
+        <div id="cal-grid" class="cal-grid"></div>
+        <div class="cal-legend">
+          <span class="grad start" title="0h"></span><span>0h</span>
+          <span class="grad end" title="8h+"></span><span>8h+</span>
+        </div>
+      </section>
+    </aside>
+  </div> <!-- /.layout -->
   <div class="foot-note">Attendance System · local only</div>
 </div>
 <script>

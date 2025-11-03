@@ -1,10 +1,48 @@
 <!doctype html>
-<html>
 <head>
-  <meta charset="utf-8">
-  <title>회원가입</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>팀 게시판</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <style>
+  .topnav {
+    background-color: #111827;
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  .topnav .menu {
+    position: relative;
+  }
+  .topnav a {
+    color: #e5e7eb;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+  }
+  .submenu {
+    display: none;
+    position: absolute;
+    background-color: #1f2937;
+    min-width: 180px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    z-index: 10;
+    border-radius: 8px;
+    padding: 8px 0;
+  }
+  .submenu a {
+    display: block;
+    padding: 8px 16px;
+    color: #e5e7eb;
+  }
+  .submenu a:hover {
+    background-color: #374151;
+  }
+  .menu:hover .submenu {
+    display: block;
+  }
     body {
       margin: 0;
       min-height: 100vh;
@@ -261,6 +299,19 @@
   </style>
 </head>
 <body>
+  <nav class="topnav">
+    <div class="menu">
+      <a href="{{ url_for('dashboard') }}">🏠 내 메뉴</a>
+      <div class="submenu">
+        <a href="{{ url_for('profiles') }}">👥 팀 상태판</a>
+        <a href="{{ url_for('weekly') }}">📅 주간 현황판</a>
+        <a href="{{ url_for('monthly') }}">📊 월간 현황판</a>
+        <a href="{{ url_for('board') }}">💬 팀 게시판</a>
+        <a href="{{ url_for('change_password') }}">🔐 비밀번호 변경</a>
+        <a href="{{ url_for('logout') }}">🚪 로그아웃</a>
+      </div>
+    </div>
+  </nav>
   <div class="shell">
     <div class="halo"></div>
 

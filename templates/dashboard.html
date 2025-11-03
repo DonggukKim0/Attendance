@@ -1,4 +1,48 @@
-<style>
+<!doctype html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>팀 게시판</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+  .topnav {
+    background-color: #111827;
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+  .topnav .menu {
+    position: relative;
+  }
+  .topnav a {
+    color: #e5e7eb;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+  }
+  .submenu {
+    display: none;
+    position: absolute;
+    background-color: #1f2937;
+    min-width: 180px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+    z-index: 10;
+    border-radius: 8px;
+    padding: 8px 0;
+  }
+  .submenu a {
+    display: block;
+    padding: 8px 16px;
+    color: #e5e7eb;
+  }
+  .submenu a:hover {
+    background-color: #374151;
+  }
+  .menu:hover .submenu {
+    display: block;
+  }
   body { background: #f5f6fa; }
   .wrap { max-width: 480px; margin: 32px auto; padding: 0 16px 40px; }
   .hello-card { background: linear-gradient(135deg, #4f6bed 0%, #7c93ff 100%); border-radius: 16px; box-shadow: 0 16px 32px rgba(40,50,130,0.28); color: #fff; padding: 20px 24px 24px; display: flex; flex-direction: column; position: relative; overflow: hidden; }
@@ -19,7 +63,22 @@
   .link-item a { text-decoration: none; color: #2b2e3a; font-weight: 500; display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: #f5f6fa; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.03); transition: all 0.15s ease; }
   .link-item a:hover { background: #eef0ff; box-shadow: 0 8px 20px rgba(79,107,237,0.18); color: #4f6bed; }
   .foot-note { margin-top: 28px; font-size: 11px; text-align: center; color: #bbbccf; }
-</style>
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="menu">
+      <a href="{{ url_for('dashboard') }}">🏠 내 메뉴</a>
+      <div class="submenu">
+        <a href="{{ url_for('profiles') }}">👥 팀 상태판</a>
+        <a href="{{ url_for('weekly') }}">📅 주간 현황판</a>
+        <a href="{{ url_for('monthly') }}">📊 월간 현황판</a>
+        <a href="{{ url_for('board') }}">💬 팀 게시판</a>
+        <a href="{{ url_for('change_password') }}">🔐 비밀번호 변경</a>
+        <a href="{{ url_for('logout') }}">🚪 로그아웃</a>
+      </div>
+    </div>
+  </nav>
 
 <div class="wrap">
   <section class="hello-card">

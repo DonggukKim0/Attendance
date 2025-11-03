@@ -162,22 +162,30 @@
     font-weight:700;
     margin:4px 0 8px;
     font-variant-numeric: tabular-nums;
+    position: relative;
+    z-index: 1;   /* 원 위에 떠 있도록 */
   }
-  .pomo-bar-wrap {
-    width:100%;
+    .pomo-circle-wrap {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
   }
-  .pomo-bar-bg {
-    width:100%;
-    height:10px;
-    border-radius:999px;
-    background:#e5e7eb;
-    overflow:hidden;
+  .pomo-circle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: conic-gradient(#22c55e 0deg 360deg, #e5e7eb 360deg 360deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
   }
-  .pomo-bar-fill {
-    height:100%;
-    width:0%;
-    background:linear-gradient(90deg,#22c55e,#16a34a);
-    transition:width 0.25s linear;
+  .pomo-circle::after {
+    content: "";
+    position: absolute;
+    inset: 14px;
+    border-radius: 50%;
+    background: #ffffff;
   }
   .pomo-message {
     margin-top:8px;
@@ -323,15 +331,14 @@
 
         <button id="pomo-start" class="pomo-btn">시작하기</button>
 
-        <div class="pomo-timer" id="pomo-timer" style="display:none;">
-          <div class="pomo-label" id="pomo-mode-label">집중 시간</div>
-          <div class="pomo-time" id="pomo-time-text">25:00</div>
-          <div class="pomo-bar-wrap">
-            <div class="pomo-bar-bg">
-              <div class="pomo-bar-fill" id="pomo-bar-fill"></div>
-            </div>
+      <div class="pomo-timer" id="pomo-timer" style="display:none;">
+        <div class="pomo-label" id="pomo-mode-label">집중 시간</div>
+        <div class="pomo-circle-wrap">
+          <div class="pomo-circle" id="pomo-circle">
+            <div class="pomo-time" id="pomo-time-text">25:00</div>
           </div>
         </div>
+      </div>
 
         <div class="pomo-message" id="pomo-message"></div>
       </section>
@@ -438,7 +445,7 @@
   const timerBox   = document.getElementById("pomo-timer");
   const modeLabel  = document.getElementById("pomo-mode-label");
   const timeText   = document.getElementById("pomo-time-text");
-  const barFill    = document.getElementById("pomo-bar-fill");
+  const circle     = document.getElementById("pomo-circle");
   const msgBox     = document.getElementById("pomo-message");
 
   if (!startBtn) return;
@@ -454,6 +461,9 @@
       msgBox.textContent = "";
       startBtn.disabled = false;
       startBtn.textContent = "시작하기";
+      if (circle) {
+        circle.style.background = "conic-gradient(#22c55e 0deg 360deg, #e5e7eb 360deg 360deg)";
+      }
       return;
     }
 
@@ -464,7 +474,13 @@
 
     const elapsed = totalSec - leftSec;
     const ratio = totalSec > 0 ? Math.min(1, Math.max(0, elapsed / totalSec)) : 0;
-    barFill.style.width = (ratio * 100) + "%";
+
+    // 남은 시간 비율에 따라 원형 시계의 초록색 영역을 줄여가기
+    if (circle && totalSec > 0) {
+      const remainRatio = leftSec / totalSec;              // 1.0 -> 0.0
+      const sweep = Math.max(0, Math.min(360, 360 * remainRatio));
+      circle.style.background = `conic-gradient(#22c55e 0deg ${sweep}deg, #e5e7eb ${sweep}deg 360deg)`;
+    }
 
     modeLabel.textContent = (mode === "focus") ? "집중 시간" : "휴식 시간";
   }
@@ -488,9 +504,13 @@
   function notify(text){
     msgBox.textContent = text;
     showToast(text);
-    // if ("Notification" in window && Notification.permission === "granted") {
-    //   new Notification("출근도장 알림 🔔", { body: text });
-    // }
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification("출근도장 알림 🔔", { body: text });
+      } catch (e) {
+        // 일부 브라우저/환경에서는 배너 대신 알림 센터에만 쌓일 수 있음
+      }
+    }
   }
 
   function startPhase(newMode, minutes){

@@ -98,6 +98,93 @@
   .cal-legend .start { background:hsl(140 70% 95%); }
   .cal-legend .end { background:hsl(140 70% 40%); }
 
+  .pomo-card {
+    margin-top: 16px;
+    background:#fff;
+    border-radius:14px;
+    box-shadow:0 12px 28px rgba(0,0,0,0.07);
+    padding:14px 16px 18px;
+  }
+  .pomo-title {
+    font-weight:700;
+    font-size:15px;
+    margin-bottom:8px;
+    color:#111827;
+  }
+  .pomo-config {
+    display:flex;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .pomo-field {
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .pomo-field label {
+    font-size:11px;
+    color:#6b7280;
+  }
+  .pomo-field input {
+    border-radius:10px;
+    border:1px solid #e5e7eb;
+    padding:6px 8px;
+    font-size:14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .pomo-btn {
+    width:100%;
+    margin-top:4px;
+    border:none;
+    border-radius:999px;
+    padding:8px 0;
+    font-weight:600;
+    cursor:pointer;
+    background:linear-gradient(135deg,#4f46e5 0%,#6366f1 100%);
+    color:#fff;
+    font-size:14px;
+    box-shadow:0 10px 20px rgba(79,102,241,0.35);
+  }
+  .pomo-btn:disabled {
+    opacity:0.6;
+    cursor:default;
+  }
+  .pomo-timer {
+    margin-top:12px;
+  }
+  .pomo-label {
+    font-size:12px;
+    color:#6b7280;
+  }
+  .pomo-time {
+    font-size:24px;
+    font-weight:700;
+    margin:4px 0 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .pomo-bar-wrap {
+    width:100%;
+  }
+  .pomo-bar-bg {
+    width:100%;
+    height:10px;
+    border-radius:999px;
+    background:#e5e7eb;
+    overflow:hidden;
+  }
+  .pomo-bar-fill {
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,#22c55e,#16a34a);
+    transition:width 0.25s linear;
+  }
+  .pomo-message {
+    margin-top:8px;
+    font-size:12px;
+    color:#4b5563;
+  }
+
   @media (max-width: 920px){
     .layout { grid-template-columns: 1fr; }
     .side { order: -1; }
@@ -219,6 +306,35 @@
           <span class="grad end" title="8h+"></span><span>8h+</span>
         </div>
       </section>
+
+      <section class="pomo-card">
+        <div class="pomo-title">⏱ 집중 타이머</div>
+
+        <div class="pomo-config">
+          <div class="pomo-field">
+            <label for="pomo-focus">집중 시간 (분)</label>
+            <input id="pomo-focus" type="number" min="1" max="60" value="25">
+          </div>
+          <div class="pomo-field">
+            <label for="pomo-break">휴식 시간 (분)</label>
+            <input id="pomo-break" type="number" min="5" max="15" value="5">
+          </div>
+        </div>
+
+        <button id="pomo-start" class="pomo-btn">시작하기</button>
+
+        <div class="pomo-timer" id="pomo-timer" style="display:none;">
+          <div class="pomo-label" id="pomo-mode-label">집중 시간</div>
+          <div class="pomo-time" id="pomo-time-text">25:00</div>
+          <div class="pomo-bar-wrap">
+            <div class="pomo-bar-bg">
+              <div class="pomo-bar-fill" id="pomo-bar-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pomo-message" id="pomo-message"></div>
+      </section>
     </aside>
   </div> <!-- /.layout -->
   <div class="foot-note">Attendance System · local only</div>
@@ -312,5 +428,108 @@
   });
 
   renderCalendar();
+})();
+</script>
+<script>
+(function(){
+  const focusInput = document.getElementById("pomo-focus");
+  const breakInput = document.getElementById("pomo-break");
+  const startBtn   = document.getElementById("pomo-start");
+  const timerBox   = document.getElementById("pomo-timer");
+  const modeLabel  = document.getElementById("pomo-mode-label");
+  const timeText   = document.getElementById("pomo-time-text");
+  const barFill    = document.getElementById("pomo-bar-fill");
+  const msgBox     = document.getElementById("pomo-message");
+
+  if (!startBtn) return;
+
+  let timerId = null;
+  let mode = "idle";      // 'focus' | 'break' | 'idle'
+  let totalSec = 0;
+  let leftSec = 0;
+
+  function updateView(){
+    if (mode === "idle") {
+      timerBox.style.display = "none";
+      msgBox.textContent = "";
+      startBtn.disabled = false;
+      startBtn.textContent = "시작하기";
+      return;
+    }
+
+    timerBox.style.display = "block";
+    const mm = String(Math.floor(leftSec / 60)).padStart(2,"0");
+    const ss = String(leftSec % 60).padStart(2,"0");
+    timeText.textContent = `${mm}:${ss}`;
+
+    const elapsed = totalSec - leftSec;
+    const ratio = totalSec > 0 ? Math.min(1, Math.max(0, elapsed / totalSec)) : 0;
+    barFill.style.width = (ratio * 100) + "%";
+
+    modeLabel.textContent = (mode === "focus") ? "집중 시간" : "휴식 시간";
+  }
+
+  function notify(text){
+    msgBox.textContent = text;
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("출근도장 알림 🔔", { body: text });
+    }
+  }
+
+  function startPhase(newMode, minutes){
+    mode = newMode;
+    totalSec = Math.max(1, minutes * 60);
+    leftSec = totalSec;
+    msgBox.textContent = "";
+    startBtn.disabled = true;
+    startBtn.textContent = (mode === "focus") ? "집중 중..." : "휴식 중...";
+    updateView();
+
+    if (timerId) clearInterval(timerId);
+    timerId = setInterval(() => {
+      leftSec -= 1;
+      if (leftSec <= 0){
+        clearInterval(timerId);
+        leftSec = 0;
+        updateView();
+
+        if (mode === "focus"){
+          notify("집중 시간이 끝났습니다. 잠깐 쉬어가요 ☕");
+          const br = Math.min(15, Math.max(5, parseInt(breakInput.value || "5", 10) || 5));
+          startPhase("break", br);
+        } else if (mode === "break"){
+          notify("휴식이 끝났습니다. 다시 한 번 집중해 볼까요? 💪");
+          mode = "idle";
+          startBtn.disabled = false;
+          startBtn.textContent = "다시 설정하기";
+          updateView();
+        }
+      } else {
+        updateView();
+      }
+    }, 1000);
+  }
+
+  // 알림 권한 한 번만 요청
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+
+  startBtn.addEventListener("click", () => {
+    if (mode !== "idle") return;
+
+    let f = parseInt(focusInput.value || "25", 10) || 25;
+    let b = parseInt(breakInput.value || "5", 10) || 5;
+
+    if (f < 1) f = 1;
+    if (f > 60) f = 60;
+    if (b < 5) b = 5;
+    if (b > 15) b = 15;
+
+    focusInput.value = f;
+    breakInput.value = b;
+
+    startPhase("focus", f);
+  });
 })();
 </script>

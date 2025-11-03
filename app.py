@@ -35,6 +35,21 @@ def get_db():
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
 
+    # --- ensure board_messages table exists (monthly DB refresh by design) ---
+    c_tmp = conn.cursor()
+    c_tmp.execute(
+        """
+        CREATE TABLE IF NOT EXISTS board_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            created_at TEXT,
+            content TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+        """
+    )
+    conn.commit()
+
     if first_time:
         c = conn.cursor()
 
@@ -871,6 +886,70 @@ def register():
         return redirect(url_for("login"))
 
     return render_template("register.html")
+
+
+# ---------------------- Board routes (chat-like guestbook) ----------------------
+@app.route("/board", methods=["GET"])
+def board():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # 최근 200개 메시지를 시간순(오래된→최신)으로 보여줌
+    c.execute(
+        """
+        SELECT bm.id,
+               bm.created_at,
+               bm.content,
+               u.username,
+               u.avatar_path
+        FROM board_messages bm
+        JOIN users u ON bm.user_id = u.id
+        ORDER BY bm.id ASC
+        LIMIT 200
+        """
+    )
+    messages = c.fetchall()
+    conn.close()
+
+    return render_template("board.html", messages=messages)
+
+@app.route("/board/post", methods=["POST"])
+def board_post():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    uid = get_current_user_id()
+    if not uid:
+        return redirect(url_for("login"))
+
+    content = (request.form.get("content", "") or "").strip()
+    # 간단한 길이 제한 (이모지/멀티바이트 감안해 여유)
+    if not content:
+        flash("메시지를 입력하세요.")
+        return redirect(url_for("board"))
+    if len(content) > 280:
+        flash("메시지는 280자 이내로 작성해주세요.")
+        return redirect(url_for("board"))
+
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        """
+        INSERT INTO board_messages (user_id, created_at, content)
+        VALUES (?, ?, ?)
+        """,
+        (uid, created_at, content)
+    )
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("board"))
+
 
 @app.route("/profiles")
 def profiles():

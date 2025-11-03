@@ -510,12 +510,12 @@
     }, 1000);
   }
 
-  // 알림 권한 한 번만 요청
-  if ("Notification" in window && Notification.permission === "default") {
-    Notification.requestPermission();
-  }
-
   startBtn.addEventListener("click", () => {
+    // 사용자 클릭 시에만 알림 권한 요청 (브라우저 정책에 맞게)
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+
     if (mode !== "idle") return;
 
     let f = parseInt(focusInput.value || "25", 10) || 25;

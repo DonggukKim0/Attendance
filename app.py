@@ -724,6 +724,7 @@ def admin_add_user():
 
     return render_template("add_user.html")
 
+
 @app.route("/admin_delete_user/<username>", methods=["POST"])
 def admin_delete_user(username):
     if not session.get("is_admin", False):
@@ -750,6 +751,57 @@ def admin_delete_user(username):
     conn.close()
 
     flash(f"{username} 계정을 완전히 삭제했습니다.")
+    return redirect(url_for("admin"))
+
+# ---- Admin force checkout route ----
+@app.route("/admin/force_checkout/<int:user_id>", methods=["POST"])
+def admin_force_checkout(user_id):
+    if not session.get("is_admin", False):
+        return redirect(url_for("dashboard"))
+
+    today = date.today().isoformat()
+    now = datetime.now().strftime("%H:%M:%S")
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # 오늘 미체크아웃(열린) 기록 하나를 찾아 강제 퇴근 처리
+    c.execute(
+        """
+        SELECT id, time_in
+        FROM attendance
+        WHERE user_id=? AND date=? AND time_out IS NULL
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (user_id, today)
+    )
+    rec = c.fetchone()
+
+    if rec:
+        try:
+            t_in = datetime.strptime(rec[1], "%H:%M:%S")
+            t_out = datetime.strptime(now, "%H:%M:%S")
+            delta_min = int((t_out - t_in).total_seconds() // 60)
+            if delta_min < 0:
+                delta_min = 0
+        except Exception:
+            delta_min = 0
+
+        c.execute(
+            """
+            UPDATE attendance
+            SET time_out=?, work_minutes=?
+            WHERE id=?
+            """,
+            (now, delta_min, rec[0])
+        )
+        conn.commit()
+        flash("해당 사용자를 퇴근 처리했습니다.")
+    else:
+        flash("해당 사용자의 오늘 열린 근무 기록이 없습니다.")
+
+    conn.close()
     return redirect(url_for("admin"))
 
 @app.route("/register", methods=["GET", "POST"])

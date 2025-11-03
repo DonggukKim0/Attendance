@@ -532,21 +532,13 @@ def dashboard():
 
 @app.route("/punch_form", methods=["GET"])
 def punch_form():
-    """
-    출근 전, 럭키 코드(1~5 중 서로 다른 숫자 3개)를 입력받는 페이지.
-    오후 17:00 이후에는 참여를 막고 대시보드로 돌려보낸다.
-    이후 제출은 /punch_in 으로 POST 전송.
-    """
     if "user_id" not in session:
         return redirect(url_for("login"))
 
     now_t = datetime.now().time()
-    # 17:00 이후면 코드 선택(참여) 불가
-    if now_t >= time(17, 0):
-        flash("오후 5시 이후에는 오늘 이벤트 참여가 마감되었습니다. 내일 다시 도전해 주세요!")
-        return redirect(url_for("dashboard"))
+    allow_lucky = now_t < time(17, 0)  # 5시 이전에만 lucky 입력 가능
 
-    return render_template("punch_form.html")
+    return render_template("punch_form.html", allow_lucky=allow_lucky)
 
 @app.route("/punch_in", methods=["POST"])
 def punch_in():

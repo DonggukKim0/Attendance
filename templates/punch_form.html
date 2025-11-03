@@ -142,27 +142,38 @@
       {% endwith %}
 
       <form method="post" action="{{ url_for('punch_in') }}">
-        <div class="numbers-row">
-          <div class="num-box">
-            <label for="n1">첫번째</label>
-            <input id="n1" name="n1" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
+        {% if allow_lucky %}
+          <div class="numbers-row">
+            <div class="num-box">
+              <label for="n1">첫번째</label>
+              <input id="n1" name="n1" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
+            </div>
+            <div class="num-box">
+              <label for="n2">두번째</label>
+              <input id="n2" name="n2" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
+            </div>
+            <div class="num-box">
+              <label for="n3">세번째</label>
+              <input id="n3" name="n3" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
+            </div>
           </div>
-          <div class="num-box">
-            <label for="n2">두번째</label>
-            <input id="n2" name="n2" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
-          </div>
-          <div class="num-box">
-            <label for="n3">세번째</label>
-            <input id="n3" name="n3" type="text" inputmode="numeric" pattern="[1-5]" maxlength="1" required>
-          </div>
-        </div>
 
-        <div class="hint">1~5에서 서로 다른 숫자 3개를 선택하세요</div>
-        <div id="dupWarn" class="dup-hint">같은 숫자는 중복으로 넣을 수 없어요 👀</div>
+          <div class="hint">1~5에서 서로 다른 숫자 3개를 선택하세요</div>
+          <div id="dupWarn" class="dup-hint">같은 숫자는 중복으로 넣을 수 없어요 👀</div>
 
-        <div class="btn-row">
-          <button type="submit" class="submit-btn">출근하기 & 참여하기</button>
-        </div>
+          <div class="btn-row">
+            <button type="submit" class="submit-btn">출근하기 & 참여하기</button>
+          </div>
+        {% else %}
+          <div style="text-align:center;margin:24px 0;">
+            <p style="font-size:14px;color:#555;">🕔 오후 5시 이후에는 오늘의 럭키 이벤트 참여가 마감되었습니다.<br>출근만 가능합니다.</p>
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="submit-btn" style="background:linear-gradient(135deg,#4f6bed 0%,#7280ff 100%);box-shadow:0 10px 20px rgba(79,107,237,0.35);">
+              출근하기
+            </button>
+          </div>
+        {% endif %}
       </form>
 
       <div class="btn-row" style="margin-top:16px;">

@@ -96,9 +96,9 @@
 
     <div class="composer">
       {% if session.get('avatar_path') %}
-        <img class="me-avatar" src="/{{ session['avatar_path'] }}" alt="me">
+        <img class="me-avatar" src="/{{ session['avatar_path'] }}" alt="">
       {% else %}
-        <img class="me-avatar" src="/static/avatars/default.png" alt="me">
+        <img class="me-avatar" src="/static/avatars/default.png" alt="">
       {% endif %}
       <form method="post" action="{{ url_for('board_post') }}" onsubmit="return allowSend();">
         <textarea id="msg" name="content" maxlength="280" placeholder="짧은 메모나 공지, 응원 한 줄 (최대 280자)"></textarea>

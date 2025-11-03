@@ -248,7 +248,7 @@
     }
 
     // fetch data if API exists
-    const url = `{{ url_for('api_monthly_work') if 'api_monthly_work' in globals() else '/api_monthly_work' }}?year=${curYear}&month=${curMonth+1}`;
+    const url = `{{ url_for('api_monthly_work') }}?year=${curYear}&month=${curMonth+1}`;
     fetch(url)
       .then(r => r.ok ? r.json() : null)
       .then(data => {

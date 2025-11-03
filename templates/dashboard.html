@@ -469,11 +469,28 @@
     modeLabel.textContent = (mode === "focus") ? "집중 시간" : "휴식 시간";
   }
 
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.position = 'fixed';
+    toast.style.top = '20px';
+    toast.style.right = '20px';
+    toast.style.background = '#4f46e5';
+    toast.style.color = 'white';
+    toast.style.padding = '10px 20px';
+    toast.style.borderRadius = '8px';
+    toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+    toast.style.zIndex = '9999';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+
   function notify(text){
     msgBox.textContent = text;
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("출근도장 알림 🔔", { body: text });
-    }
+    showToast(text);
+    // if ("Notification" in window && Notification.permission === "granted") {
+    //   new Notification("출근도장 알림 🔔", { body: text });
+    // }
   }
 
   function startPhase(newMode, minutes){

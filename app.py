@@ -401,6 +401,38 @@ def verify_password(stored_password: str, provided_password: str) -> bool:
         return check_password_hash(stored_password, provided_password)
     return stored_password == provided_password
 
+# --- User ID resolver based on session username (stable across month DBs) ---
+def get_current_user_id():
+    """
+    Resolve the current user's id from the *current month DB* using the session username.
+    If the user row does not exist in this month's users table (e.g., new DB after month roll-over),
+    create it on-the-fly to keep ids consistent for this month.
+    Returns integer user_id or None if not logged in.
+    """
+    uname = session.get("username")
+    if not uname:
+        return None
+
+    conn = get_db()
+    c = conn.cursor()
+
+    c.execute("SELECT id FROM users WHERE username=?", (uname,))
+    row = c.fetchone()
+    if row:
+        uid = row[0]
+        conn.close()
+        return uid
+
+    # If not found in this month's DB, insert a minimal user row (non-admin, no password change here)
+    c.execute(
+        "INSERT INTO users (username, password, is_admin, status_msg, avatar_path) VALUES (?, ?, ?, ?, ?)",
+        (uname, None, 0, None, None)
+    )
+    conn.commit()
+    uid = c.lastrowid
+    conn.close()
+    return uid
+
 #############################################
 # 라우트들
 #############################################
@@ -430,10 +462,10 @@ def login():
 
 @app.route("/dashboard")
 def dashboard():
-    if "user_id" not in session:
+    user_id = get_current_user_id()
+    if not user_id:
         return redirect(url_for("login"))
 
-    user_id = session["user_id"]
     username = session["username"]
     today = date.today().isoformat()
 
@@ -503,10 +535,10 @@ def punch_form():
 
 @app.route("/punch_in", methods=["POST"])
 def punch_in():
-    if "user_id" not in session:
+    user_id = get_current_user_id()
+    if not user_id:
         return redirect(url_for("login"))
 
-    user_id = session["user_id"]
     today = date.today().isoformat()
     now = datetime.now().strftime("%H:%M:%S")
 
@@ -554,10 +586,10 @@ def punch_in():
 
 @app.route("/punch_out", methods=["POST"])
 def punch_out():
-    if "user_id" not in session:
+    user_id = get_current_user_id()
+    if not user_id:
         return redirect(url_for("login"))
 
-    user_id = session["user_id"]
     today = date.today().isoformat()
     now = datetime.now().strftime("%H:%M:%S")
 
@@ -652,7 +684,7 @@ def change_password():
 
         conn = get_db()
         c = conn.cursor()
-        c.execute("SELECT password FROM users WHERE id=?", (session["user_id"],))
+        c.execute("SELECT password FROM users WHERE username=?", (session.get("username"),))
         row = c.fetchone()
         if not row:
             conn.close()
@@ -666,7 +698,7 @@ def change_password():
             return redirect(url_for("change_password"))
 
         new_hashed = hash_password(new_pw)
-        c.execute("UPDATE users SET password=? WHERE id=?", (new_hashed, session["user_id"]))
+        c.execute("UPDATE users SET password=? WHERE username=?", (new_hashed, session.get("username")))
         conn.commit()
         conn.close()
 
@@ -938,7 +970,8 @@ def profiles():
     # Lucky info for team banner
     lconn = get_lucky_db()
     ensure_daily_draw(lconn)
-    lucky_info_for_profiles = get_today_lucky_info(lconn, session["user_id"])
+    cur_uid = get_current_user_id()
+    lucky_info_for_profiles = get_today_lucky_info(lconn, cur_uid if cur_uid else 0)
 
     winner_usernames = []
     for uid in lucky_info_for_profiles["winners_list"]:

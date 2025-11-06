@@ -76,6 +76,36 @@
     .composer form{display:flex;gap:10px;flex:1}
     .composer textarea{flex:1;min-height:56px;max-height:200px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;resize:vertical;font-size:14px}
     .composer .right{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+    .reactions{
+      margin-top:6px;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .reaction-btn{
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      font-size:11px;
+      padding:4px 8px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:#f9fafb;
+      color:#4b5563;
+      cursor:pointer;
+    }
+    .reaction-btn span{
+      font-variant-numeric:tabular-nums;
+    }
+    .msg.me .reaction-btn{
+      background:rgba(15,23,42,0.85);
+      border-color:#4b5563;
+      color:#e5e7eb;
+    }
+    .reaction-btn:hover{
+      background:#e5f9f0;
+      border-color:#a7f3d0;
+    }
     .counter{font-size:.8rem;color:var(--muted)}
     .send{border:none;background:var(--accent);color:#fff;padding:10px 16px;border-radius:12px;cursor:pointer}
     .send:disabled{opacity:.5;cursor:not-allowed}
@@ -130,6 +160,24 @@
                 <span class="time">{{ m['created_at'] }}</span>
               </div>
               <div class="content">{{ m['content']|e }}</div>
+              <div class="reactions">
+                <form method="post" action="{{ url_for('board_react') }}">
+                  <input type="hidden" name="message_id" value="{{ m['id'] }}">
+                  <input type="hidden" name="kind" value="like">
+                  <button type="submit" class="reaction-btn">
+                    👍
+                    <span>{{ m['like_count'] or 0 }}</span>
+                  </button>
+                </form>
+                <form method="post" action="{{ url_for('board_react') }}">
+                  <input type="hidden" name="message_id" value="{{ m['id'] }}">
+                  <input type="hidden" name="kind" value="sad">
+                  <button type="submit" class="reaction-btn">
+                    😢
+                    <span>{{ m['sad_count'] or 0 }}</span>
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
         {% else %}

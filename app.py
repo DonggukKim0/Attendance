@@ -44,10 +44,21 @@ def get_db():
             user_id INTEGER,
             created_at TEXT,
             content TEXT,
+            like_count INTEGER DEFAULT 0,
+            sad_count INTEGER DEFAULT 0,
             FOREIGN KEY(user_id) REFERENCES users(id)
         )
         """
     )
+    # 기존 DB에 리액션 컬럼이 없을 수 있으므로, 실패는 무시하고 ALTER 시도
+    try:
+        c_tmp.execute("ALTER TABLE board_messages ADD COLUMN like_count INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c_tmp.execute("ALTER TABLE board_messages ADD COLUMN sad_count INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
     conn.commit()
 
     if first_time:
@@ -910,7 +921,9 @@ def board():
                bm.created_at,
                bm.content,
                u.username,
-               u.avatar_path
+               u.avatar_path,
+               COALESCE(bm.like_count, 0) AS like_count,
+               COALESCE(bm.sad_count, 0) AS sad_count
         FROM board_messages bm
         JOIN users u ON bm.user_id = u.id
         ORDER BY bm.id ASC
@@ -951,6 +964,40 @@ def board_post():
         """,
         (uid, created_at, content)
     )
+    conn.commit()
+    conn.close()
+
+    return redirect(url_for("board"))
+
+
+# --- Board message reaction route ---
+@app.route("/board/react", methods=["POST"])
+def board_react():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    uid = get_current_user_id()
+    if not uid:
+        return redirect(url_for("login"))
+
+    msg_id = request.form.get("message_id", type=int)
+    kind = request.form.get("kind", "").strip()
+
+    if not msg_id or kind not in ("like", "sad"):
+        return redirect(url_for("board"))
+
+    conn = get_db()
+    c = conn.cursor()
+    if kind == "like":
+        c.execute(
+            "UPDATE board_messages SET like_count = COALESCE(like_count, 0) + 1 WHERE id=?",
+            (msg_id,)
+        )
+    else:
+        c.execute(
+            "UPDATE board_messages SET sad_count = COALESCE(sad_count, 0) + 1 WHERE id=?",
+            (msg_id,)
+        )
     conn.commit()
     conn.close()
 

@@ -84,13 +84,13 @@
     transform: scale(1.04);
     box-shadow: 0 12px 24px rgba(0, 195, 106, 0.45);
   }
-
-  .punch-btn[style*="f97316"]:hover,
-  .punch-btn[style*="fb923c"]:hover {
+  .punch-btn.pause-btn {
+    box-shadow: 0 10px 20px rgba(249,115,22,0.35);
+  }
+  .punch-btn.pause-btn:hover {
     transform: scale(1.04);
     box-shadow: 0 12px 24px rgba(249, 115, 22, 0.45); /* 주황색 빛 */
   }
-
   .punch-btn.out:hover {
     transform: scale(1.04);
     box-shadow: 0 12px 24px rgba(255, 75, 75, 0.5); /* 빨간색 빛 */
@@ -301,11 +301,11 @@
           {% if open_rec %}
             {% if is_paused %}
               <form method="post" action="{{ url_for('resume') }}" style="flex:1;">
-                <button type="submit" class="punch-btn" style="background:linear-gradient(135deg,#f97316,#fb923c); width:100%;">재개하기</button>
+                <button type="submit" class="punch-btn pause-btn" style="background:linear-gradient(135deg,#f97316,#fb923c); width:100%;">재개하기</button>
               </form>
             {% else %}
               <form method="post" action="{{ url_for('pause') }}" style="flex:1;">
-                <button type="submit" class="punch-btn" style="background:linear-gradient(135deg,#f97316,#fb923c); width:100%;">일시정지</button>
+                <button type="submit" class="punch-btn pause-btn" style="background:linear-gradient(135deg,#f97316,#fb923c); width:100%;">일시정지</button>
               </form>
             {% endif %}
             <form method="post" action="{{ url_for('punch_out') }}" style="flex:1;">

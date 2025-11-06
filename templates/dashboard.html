@@ -65,6 +65,10 @@
   .pill-status { font-size: 12px; font-weight: 500; line-height: 1.4; border-radius: 999px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.22); color: #fff; }
   .pill-dot { width: 8px; height: 8px; border-radius: 50%; background: #00ff85; box-shadow: 0 0 8px rgba(0,255,133,0.8); }
   .pill-dot.off { background: #ff4f4f; box-shadow: 0 0 8px rgba(255,79,79,0.8); }
+  .pill-dot.pause {
+    background: #f97316;
+    box-shadow: 0 0 8px rgba(249,115,22,0.8);
+  }
   .hello-detail { font-size: 13px; font-weight: 400; margin-top: 12px; line-height: 1.5; color: rgba(255,255,255,0.9); }
   .stat-card, .section-card, .lucky-card { background: #fff; border-radius: 14px; box-shadow: 0 12px 28px rgba(0,0,0,0.07); padding: 16px 20px 18px; margin-top: 20px; }
   .stat-header, .lucky-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
@@ -245,7 +249,11 @@
         <div class="hello-name">
           <div>{{ username }}님</div>
           {% if open_rec %}
-            <div class="pill-status"><div class="pill-dot"></div><div>근무중</div></div>
+            {% if is_paused %}
+              <div class="pill-status"><div class="pill-dot pause"></div><div>일시정지중</div></div>
+            {% else %}
+              <div class="pill-status"><div class="pill-dot"></div><div>근무중</div></div>
+            {% endif %}
           {% else %}
             <div class="pill-status"><div class="pill-dot off"></div><div>퇴근상태</div></div>
           {% endif %}
@@ -273,6 +281,15 @@
 
         <div class="punch-wrap">
           {% if open_rec %}
+            {% if is_paused %}
+              <form method="post" action="{{ url_for('resume') }}">
+                <button type="submit" class="punch-btn" style="background:linear-gradient(135deg,#f97316,#fb923c);">재개하기</button>
+              </form>
+            {% else %}
+              <form method="post" action="{{ url_for('pause') }}">
+                <button type="submit" class="punch-btn" style="background:linear-gradient(135deg,#f97316,#fb923c);">일시정지</button>
+              </form>
+            {% endif %}
             <form method="post" action="{{ url_for('punch_out') }}">
               <button type="submit" class="punch-btn out">퇴근하기</button>
             </form>

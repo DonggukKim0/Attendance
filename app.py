@@ -61,6 +61,17 @@ def get_db():
         pass
     conn.commit()
 
+    # Ensure attendance table has paused_seconds and pause_started_at columns
+    try:
+        c_tmp.execute("ALTER TABLE attendance ADD COLUMN paused_seconds INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c_tmp.execute("ALTER TABLE attendance ADD COLUMN pause_started_at TEXT")
+    except sqlite3.OperationalError:
+        pass
+    conn.commit()
+
     if first_time:
         c = conn.cursor()
 
@@ -86,6 +97,8 @@ def get_db():
                 time_in TEXT,
                 time_out TEXT,
                 work_minutes INTEGER,
+                paused_seconds INTEGER DEFAULT 0,
+                pause_started_at TEXT,
                 FOREIGN KEY(user_id) REFERENCES users(id)
             )
             """
@@ -508,6 +521,10 @@ def dashboard():
     """, (user_id, today))
     open_rec = c.fetchone()
 
+    is_paused = False
+    if open_rec and "pause_started_at" in open_rec.keys():
+        is_paused = bool(open_rec["pause_started_at"])
+
     # 이번달 누적
     month_prefix = today[:7]  # YYYY-MM
     c.execute("""
@@ -539,6 +556,7 @@ def dashboard():
         my_lucky_code=lucky_info["my_code"],
         my_lucky_win=lucky_info["my_win"],
         winning_code_today=lucky_info["winning_code"],
+        is_paused=is_paused,
     )
 
 @app.route("/punch_form", methods=["GET"])
@@ -637,11 +655,17 @@ def punch_out():
         t_in = datetime.strptime(rec["time_in"], "%H:%M:%S")
         t_out = datetime.strptime(now, "%H:%M:%S")
         delta_min = int((t_out - t_in).total_seconds() // 60)
+        # Subtract paused_seconds if present
+        paused_sec = rec["paused_seconds"] if "paused_seconds" in rec.keys() and rec["paused_seconds"] is not None else 0
+        paused_min = int(paused_sec // 60)
+        work_minutes = delta_min - paused_min
+        if work_minutes < 0:
+            work_minutes = 0
         c.execute("""
             UPDATE attendance
             SET time_out=?, work_minutes=?
             WHERE id=?
-        """, (now, delta_min, rec["id"]))
+        """, (now, work_minutes, rec["id"]))
         conn.commit()
 
     conn.close()
@@ -1029,6 +1053,18 @@ def profiles():
     # 오늘 근무중(아직 퇴근 안 한) 사람들
     active_user_ids = get_active_user_ids_for_today(conn)
 
+    # 일시정지 중인 사람들
+    c.execute(
+        """
+        SELECT DISTINCT user_id
+        FROM attendance
+        WHERE date=? AND time_out IS NULL AND pause_started_at IS NOT NULL
+        """,
+        (today_str,)
+    )
+    paused_rows = c.fetchall()
+    paused_user_ids = {r[0] for r in paused_rows}
+
     # id -> username 매핑 (당첨자 이름 보여줄때 필요)
     id_to_username = {u["id"]: u["username"] for u in raw_people}
 
@@ -1051,7 +1087,7 @@ def profiles():
         # 아직 진행중이면 현재까지 경과시간 추가
         c.execute(
             """
-            SELECT time_in
+            SELECT time_in, paused_seconds, pause_started_at
             FROM attendance
             WHERE user_id=? AND date=? AND time_out IS NULL
             ORDER BY id DESC
@@ -1064,16 +1100,30 @@ def profiles():
         extra_min = 0
         if open_row:
             t_in_str = open_row["time_in"]
+            paused_sec = open_row["paused_seconds"] if "paused_seconds" in open_row.keys() and open_row["paused_seconds"] is not None else 0
+            pause_started_at = open_row["pause_started_at"] if "pause_started_at" in open_row.keys() else None
             try:
                 t_in_dt = datetime.strptime(t_in_str, "%H:%M:%S")
                 now_dt = datetime.now()
-                delta_min = int((now_dt - now_dt.replace(hour=t_in_dt.hour,
-                                                         minute=t_in_dt.minute,
-                                                         second=t_in_dt.second,
-                                                         microsecond=0)).total_seconds() // 60)
-                if delta_min < 0:
-                    delta_min = 0
-                extra_min = delta_min
+                elapsed_sec = (now_dt - now_dt.replace(hour=t_in_dt.hour,
+                                                       minute=t_in_dt.minute,
+                                                       second=t_in_dt.second,
+                                                       microsecond=0)).total_seconds()
+                # If currently paused, add current pause to paused_sec
+                if pause_started_at:
+                    try:
+                        pause_start_dt = datetime.strptime(pause_started_at, "%H:%M:%S")
+                        now_sec = now_dt.hour * 3600 + now_dt.minute * 60 + now_dt.second
+                        pause_start_sec = pause_start_dt.hour * 3600 + pause_start_dt.minute * 60 + pause_start_dt.second
+                        extra_paused = now_sec - pause_start_sec
+                        if extra_paused > 0:
+                            paused_sec += extra_paused
+                    except Exception:
+                        pass
+                elapsed_min = int((elapsed_sec - paused_sec) // 60)
+                if elapsed_min < 0:
+                    elapsed_min = 0
+                extra_min = elapsed_min
             except Exception:
                 extra_min = 0
 
@@ -1116,6 +1166,7 @@ def profiles():
         "profiles.html",
         people=people,
         active_user_ids=active_user_ids,
+        paused_user_ids=paused_user_ids,
         winning_code_today=lucky_info_for_profiles["winning_code"],
         winner_usernames=winner_usernames,
     )
@@ -1469,7 +1520,7 @@ def api_monthly_work():
         if today.year == y and today.month == m:
             c.execute(
                 """
-                SELECT time_in
+                SELECT time_in, paused_seconds, pause_started_at
                 FROM attendance
                 WHERE user_id=? AND date=? AND time_out IS NULL
                 ORDER BY id DESC LIMIT 1
@@ -1481,16 +1532,107 @@ def api_monthly_work():
                 try:
                     t_in = datetime.strptime(rec['time_in'], '%H:%M:%S')
                     now = datetime.now()
-                    elapsed = int((now - now.replace(hour=t_in.hour, minute=t_in.minute, second=t_in.second, microsecond=0)).total_seconds() // 60)
+                    elapsed_sec = (now - now.replace(hour=t_in.hour, minute=t_in.minute, second=t_in.second, microsecond=0)).total_seconds()
+                    paused_sec = rec['paused_seconds'] if 'paused_seconds' in rec.keys() and rec['paused_seconds'] is not None else 0
+                    pause_started_at = rec['pause_started_at'] if 'pause_started_at' in rec.keys() else None
+                    # If currently paused, add current pause to paused_sec
+                    if pause_started_at:
+                        try:
+                            pause_start_dt = datetime.strptime(pause_started_at, "%H:%M:%S")
+                            now_sec = now.hour * 3600 + now.minute * 60 + now.second
+                            pause_start_sec = pause_start_dt.hour * 3600 + pause_start_dt.minute * 60 + pause_start_dt.second
+                            extra_paused = now_sec - pause_start_sec
+                            if extra_paused > 0:
+                                paused_sec += extra_paused
+                        except Exception:
+                            pass
+                    elapsed = int((elapsed_sec - paused_sec) // 60)
                     if elapsed < 0:
                         elapsed = 0
                     minutes[today.day] = minutes.get(today.day, 0) + elapsed
                 except Exception:
                     pass
 
+
         conn.close()
 
     return jsonify({'year': y, 'month': m, 'minutes': minutes})
+
+
+# ---------------- Pause/Resume routes -----------------
+
+@app.route("/pause", methods=["POST"])
+def pause():
+    user_id = get_current_user_id()
+    if not user_id:
+        return redirect(url_for("login"))
+
+    today = date.today().isoformat()
+    now = datetime.now().strftime("%H:%M:%S")
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+        SELECT id, pause_started_at
+        FROM attendance
+        WHERE user_id=? AND date=? AND time_out IS NULL
+        ORDER BY id DESC LIMIT 1
+    """, (user_id, today))
+    rec = c.fetchone()
+    if rec and not rec["pause_started_at"]:
+        c.execute(
+            "UPDATE attendance SET pause_started_at=? WHERE id=?",
+            (now, rec["id"])
+        )
+        conn.commit()
+        flash("근무가 일시정지되었습니다.")
+    elif rec and rec["pause_started_at"]:
+        flash("이미 일시정지 중입니다.")
+    else:
+        flash("진행 중인 근무 기록이 없습니다.")
+    conn.close()
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/resume", methods=["POST"])
+def resume():
+    user_id = get_current_user_id()
+    if not user_id:
+        return redirect(url_for("login"))
+
+    today = date.today().isoformat()
+    now_dt = datetime.now()
+    now_str = now_dt.strftime("%H:%M:%S")
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+        SELECT id, pause_started_at, paused_seconds
+        FROM attendance
+        WHERE user_id=? AND date=? AND time_out IS NULL AND pause_started_at IS NOT NULL
+        ORDER BY id DESC LIMIT 1
+    """, (user_id, today))
+    rec = c.fetchone()
+    if rec and rec["pause_started_at"]:
+        try:
+            pause_start_dt = datetime.strptime(rec["pause_started_at"], "%H:%M:%S")
+            now_sec = now_dt.hour * 3600 + now_dt.minute * 60 + now_dt.second
+            pause_start_sec = pause_start_dt.hour * 3600 + pause_start_dt.minute * 60 + pause_start_dt.second
+            elapsed = now_sec - pause_start_sec
+            if elapsed < 0:
+                elapsed = 0
+        except Exception:
+            elapsed = 0
+        prev_paused = rec["paused_seconds"] if rec["paused_seconds"] is not None else 0
+        total_paused = prev_paused + elapsed
+        c.execute(
+            "UPDATE attendance SET paused_seconds=?, pause_started_at=NULL WHERE id=?",
+            (total_paused, rec["id"])
+        )
+        conn.commit()
+        flash("근무가 재개되었습니다.")
+    else:
+        flash("일시정지 중인 근무 기록이 없습니다.")
+    conn.close()
+    return redirect(url_for("dashboard"))
 
 if __name__ == "__main__":
     # 0.0.0.0 으로 열어야 다른 PC에서 접속 가능

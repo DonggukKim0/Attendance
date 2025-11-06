@@ -231,6 +231,10 @@
       background: #ff4f4f;
       box-shadow: 0 0 8px rgba(255,79,79,0.8);
     }
+    .dot.pause {
+      background: #f97316;
+      box-shadow: 0 0 8px rgba(249,115,22,0.8);
+    }
 
     .status-line {
       font-size: 13px;
@@ -433,7 +437,9 @@
             <div class="name-line">
               <div>{{ p["username"] }}</div>
 
-              {% if p["id"] in active_user_ids %}
+              {% if p["id"] in paused_user_ids %}
+                <div class="state-pill"><span class="dot pause"></span><span>일시정지중</span></div>
+              {% elif p["id"] in active_user_ids %}
                 <div class="state-pill"><span class="dot on"></span><span>근무중</span></div>
               {% else %}
                 <div class="state-pill"><span class="dot off"></span><span>퇴근</span></div>

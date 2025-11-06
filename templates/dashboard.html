@@ -98,6 +98,26 @@
   .cal-legend .start { background:hsl(140 70% 95%); }
   .cal-legend .end { background:hsl(140 70% 40%); }
 
+  .cal-tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #111827;
+    color: #f9fafb;
+    font-size: 11px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.35);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    z-index: 9999;
+    white-space: nowrap;
+  }
+  .cal-tooltip.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
   .pomo-card {
     margin-top: 16px;
     background:#fff;
@@ -309,6 +329,7 @@
           <span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span>
         </div>
         <div id="cal-grid" class="cal-grid"></div>
+        <div id="cal-tooltip" class="cal-tooltip"></div>
         <div class="cal-legend">
           <span class="grad start" title="0h"></span><span>0h</span>
           <span class="grad end" title="8h+"></span><span>8h+</span>
@@ -352,6 +373,7 @@
   const title = document.getElementById('cal-title');
   const btnPrev = document.getElementById('cal-prev');
   const btnNext = document.getElementById('cal-next');
+  const tooltip = document.getElementById('cal-tooltip');
 
   let today = new Date();
   let curYear = today.getFullYear();
@@ -359,9 +381,30 @@
 
   function fmtTitle(y, m0){ return `${y}.${String(m0+1).padStart(2,'0')}`; }
 
+  function positionTooltip(evt) {
+    if (!tooltip) return;
+    const offset = 12;
+    let x = evt.clientX + offset;
+    let y = evt.clientY + offset;
+    const vw = window.innerWidth || document.documentElement.clientWidth;
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const rect = tooltip.getBoundingClientRect();
+    if (x + rect.width + 8 > vw) {
+      x = vw - rect.width - 8;
+    }
+    if (y + rect.height + 8 > vh) {
+      y = vh - rect.height - 8;
+    }
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+  }
+
   function renderCalendar(){
     if (!grid) return;
     grid.innerHTML = '';
+    if (tooltip) {
+      tooltip.classList.remove('visible');
+    }
     if (title) title.textContent = fmtTitle(curYear, curMonth);
 
     const first = new Date(curYear, curMonth, 1);
@@ -416,7 +459,23 @@
           const cell = cells[day-1];
           cell.style.background = `hsl(${hue} 70% ${light}%)`;
           cell.classList.add('worked');
-          cell.title = `${(mins/60).toFixed(1)}h`;
+
+          const h = Math.floor(mins / 60);
+          const m = mins % 60;
+          const dateLabel = `${curYear}.${String(curMonth+1).padStart(2,'0')}.${String(day).padStart(2,'0')}`;
+          const label = `${dateLabel} · ${h}시간 ${m}분 근무`;
+
+          if (tooltip) {
+            cell.addEventListener('mouseenter', (evt) => {
+              tooltip.textContent = label;
+              tooltip.classList.add('visible');
+              positionTooltip(evt);
+            });
+            cell.addEventListener('mousemove', positionTooltip);
+            cell.addEventListener('mouseleave', () => {
+              tooltip.classList.remove('visible');
+            });
+          }
         });
       })
       .catch(()=>{});

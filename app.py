@@ -539,6 +539,19 @@ def dashboard():
     hours = total_min // 60
     mins = total_min % 60
 
+    # 이번주 누적 근무 시간 (월~일 기준)
+    monday, sunday = get_week_range()
+    week_data = collect_week_minutes_per_user(monday, sunday)
+
+    week_total_min = 0
+    for row in week_data:
+        if row["username"] == username:
+            week_total_min = row["week_minutes"]
+            break
+
+    week_hours = week_total_min // 60
+    week_mins = week_total_min % 60
+
     # ----- Lucky info -----
     lconn = get_lucky_db()
     ensure_daily_draw(lconn)  # 17:00 이후면 추첨/당첨 반영
@@ -551,6 +564,8 @@ def dashboard():
         open_rec=open_rec,
         month_hours=hours,
         month_mins=mins,
+        week_hours=week_hours,
+        week_mins=week_mins,
         is_admin=session.get("is_admin", False),
         # lucky info
         my_lucky_code=lucky_info["my_code"],
